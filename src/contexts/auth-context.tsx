@@ -33,7 +33,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, isConnecting, isReconnecting } = useAccount();
 
   useEffect(() => {
     // Check if user is already authenticated on mount
@@ -54,13 +54,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
     initAuth();
   }, []);
 
-  // Auto-logout when wallet is disconnected
+  // Auto-logout when wallet is disconnected (with delay to allow reconnection)
   useEffect(() => {
-    if (!isConnected && user?.authType === 'wallet') {
-      console.log('Wallet disconnected, logging out...');
-      logout();
+    // Don't logout immediately on mount - give wallet time to reconnect
+    if (!user?.authType || user.authType !== 'wallet') return;
+
+    // Don't logout if wallet is currently connecting or reconnecting
+    if (isConnecting || isReconnecting) {
+      console.log('[AuthContext] Wallet is reconnecting, waiting...');
+      return;
     }
-  }, [isConnected, user?.authType]);
+
+    // Add a delay to allow wallet to reconnect on page load
+    const timeoutId = setTimeout(() => {
+      if (!isConnected && !isConnecting && !isReconnecting && user?.authType === 'wallet') {
+        console.log('[AuthContext] Wallet disconnected, logging out...');
+        logout();
+      }
+    }, 2000); // 2 second delay to allow reconnection
+
+    return () => clearTimeout(timeoutId);
+  }, [isConnected, isConnecting, isReconnecting, user?.authType]);
 
   const login = async (
     email: string,

@@ -7,11 +7,19 @@ import { WagmiProvider } from 'wagmi';
 import { wagmiConfig } from '@/lib/wagmi-config';
 import '@rainbow-me/rainbowkit/styles.css';
 
-const queryClient = new QueryClient();
+// Create QueryClient outside component to prevent recreation on every render
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 export function RainbowProviders({ children }: { children: ReactNode }) {
   return (
-    <WagmiProvider config={wagmiConfig}>
+    <WagmiProvider config={wagmiConfig} reconnectOnMount={true}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
           {children}
