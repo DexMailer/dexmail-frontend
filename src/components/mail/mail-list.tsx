@@ -78,7 +78,7 @@ function MailItem({
       <div className="flex w-full flex-col gap-1">
         <div className="flex items-center">
           <div className="flex items-center gap-2">
-             {!mail.read && (
+            {!mail.read && (
               <span className="flex h-2 w-2 rounded-full bg-blue-600" />
             )}
             <div className={cn("font-semibold", !mail.read && "font-bold")}>{mail.name}</div>
@@ -113,6 +113,40 @@ export function MailList({
   onToggleMailSelection,
 }: MailListProps) {
   const anyMailSelected = selectedMailIds.length > 0;
+
+  if (items.length === 0) {
+    return (
+      <div className="flex h-full flex-col md:border-r">
+        <div className="flex flex-1 items-center justify-center p-8">
+          <div className="text-center space-y-3">
+            <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-8 h-8 text-muted-foreground"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+                />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">No emails yet</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Your inbox is empty. Send yourself a test email to get started!
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col md:border-r">
       <ScrollArea className="h-full">

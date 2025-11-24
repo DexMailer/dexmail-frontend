@@ -146,11 +146,12 @@ function MobileHeader() {
 }
 
 export function MailComponent({ mails: initialMails }: { mails: Mail[] }) {
-  const [mails, setMails] = useState<Mail[]>(initialMails);
+  const [mails, setMails] = useState<Mail[]>([]);
   const [selectedMailId, setSelectedMailId] = React.useState<string | null>(null);
   const [selectedMailIds, setSelectedMailIds] = React.useState<string[]>([]);
   const [activeTab, setActiveTab] = React.useState<'inbox' | 'sent'>('inbox');
   const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const isMobile = useIsMobile();
   const { address, isConnected } = useAccount();
   const { user } = useAuth();
@@ -158,32 +159,48 @@ export function MailComponent({ mails: initialMails }: { mails: Mail[] }) {
   useEffect(() => {
     const fetchMails = async () => {
       // Only fetch if user is authenticated and has an email
-      if (!isConnected || !address || !user?.email) return;
+      if (!isConnected || !address || !user?.email) {
+        // Show initial mails if not connected
+        setMails(initialMails);
+        return;
+      }
 
       setIsLoading(true);
+      setHasError(false);
       try {
+        console.log('[MailComponent] Fetching inbox for:', user.email);
         // Use user's email instead of wallet address
         const fetchedMails = await mailService.getInbox(user.email);
 
-        const mappedMails: Mail[] = fetchedMails.map(m => ({
-          id: m.messageId,
-          name: m.from, // Simplify for now
-          email: m.from,
-          subject: m.subject,
-          text: (m.body || '').substring(0, 100) + '...',
-          date: m.timestamp,
-          read: false,
-          labels: [],
-          status: 'inbox',
-          body: m.body || '',
-          hasCryptoTransfer: m.hasCryptoTransfer
-        }));
+        console.log('[MailComponent] Fetched mails:', fetchedMails.length);
 
-        // Merge with initial mails or replace? 
-        // For prototype, let's prepend fetched mails to initial mock mails
-        setMails([...mappedMails, ...initialMails]);
+        const mappedMails: Mail[] = fetchedMails.map(m => {
+          // Convert Unix timestamp (seconds) to JavaScript Date (milliseconds)
+          const timestamp = parseInt(m.timestamp, 10) * 1000;
+          const dateStr = new Date(timestamp).toISOString();
+
+          return {
+            id: m.messageId,
+            name: m.from, // Simplify for now
+            email: m.from,
+            subject: m.subject,
+            text: (m.body || '').substring(0, 100) + '...',
+            date: dateStr,
+            read: false,
+            labels: [],
+            status: 'inbox',
+            body: m.body || '',
+            hasCryptoTransfer: m.hasCryptoTransfer
+          };
+        });
+
+        // Only show fetched mails from blockchain (no mock data)
+        setMails(mappedMails);
       } catch (error) {
-        console.error('Failed to fetch mails:', error);
+        console.error('[MailComponent] Failed to fetch mails:', error);
+        setHasError(true);
+        // Show empty on error
+        setMails([]);
       } finally {
         setIsLoading(false);
       }

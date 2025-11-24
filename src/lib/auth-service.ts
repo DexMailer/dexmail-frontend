@@ -33,6 +33,20 @@ class AuthService {
   private currentUser: User | null = null;
   private token: string | null = null;
 
+  constructor() {
+    // Initialize from localStorage on creation
+    if (typeof window !== 'undefined') {
+      const storedToken = localStorage.getItem('auth_token');
+      const storedUser = localStorage.getItem('auth_user');
+
+      if (storedToken && storedUser) {
+        this.token = storedToken;
+        this.currentUser = JSON.parse(storedUser);
+        console.log('[AuthService] Initialized with stored auth:', this.currentUser?.email);
+      }
+    }
+  }
+
   async register(data: RegisterData): Promise<AuthResponse> {
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -235,6 +249,18 @@ class AuthService {
   }
 
   async getProfile(): Promise<User> {
+    // Try to restore from localStorage if not in memory
+    if (!this.currentUser && typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem('auth_user');
+      const storedToken = localStorage.getItem('auth_token');
+
+      if (storedUser && storedToken) {
+        this.currentUser = JSON.parse(storedUser);
+        this.token = storedToken;
+        console.log('[AuthService] Restored user from localStorage:', this.currentUser?.email);
+      }
+    }
+
     if (this.currentUser) return this.currentUser;
     throw new Error('Not logged in');
   }
@@ -269,12 +295,20 @@ class AuthService {
     return !!this.token;
   }
 
+  getToken(): string | null {
+    if (!this.token && typeof window !== 'undefined') {
+      this.token = localStorage.getItem('auth_token');
+    }
+    return this.token;
+  }
+
   private setAuthData(authResponse: AuthResponse) {
     this.token = authResponse.token;
     this.currentUser = authResponse.user;
     if (typeof window !== 'undefined') {
       localStorage.setItem('auth_token', authResponse.token);
       localStorage.setItem('auth_user', JSON.stringify(authResponse.user));
+      console.log('[AuthService] Stored auth data for:', authResponse.user.email);
     }
   }
 }

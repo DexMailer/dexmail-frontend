@@ -19,6 +19,7 @@ import { Send, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { mailService } from '@/lib/mail-service';
 import { CryptoAsset } from '@/lib/types';
+import { useAuth } from '@/contexts/auth-context';
 
 export function ComposeDialog({
   children,
@@ -33,12 +34,22 @@ export function ComposeDialog({
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleSend = async () => {
     if (!to || !subject || !body) {
       toast({
         title: "Missing fields",
         description: "Please fill in all fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!user?.email) {
+      toast({
+        title: "Not authenticated",
+        description: "Please log in to send emails.",
         variant: "destructive",
       });
       return;
@@ -56,7 +67,7 @@ export function ComposeDialog({
       }));
 
       await mailService.sendEmail({
-        from: 'me', // Will be handled by service/wallet
+        from: user.email, // Use authenticated user's email
         to: to.split(',').map(e => e.trim()),
         subject,
         body,
