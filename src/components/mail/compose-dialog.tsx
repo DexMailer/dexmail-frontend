@@ -1,0 +1,167 @@
+'use client';
+
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { CryptoAttachment, type Asset } from './crypto-attachment';
+import { Checkbox } from '../ui/checkbox';
+import { Send, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { mailService } from '@/lib/mail-service';
+import { CryptoAsset } from '@/lib/types';
+
+export function ComposeDialog({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const [to, setTo] = useState('');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [cryptoEnabled, setCryptoEnabled] = useState(false);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleSend = async () => {
+    if (!to || !subject || !body) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in all fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const cryptoAssets: CryptoAsset[] = assets.map(a => ({
+        type: a.type,
+        token: a.contract, // Map contract to token
+        amount: a.amount,
+        symbol: a.symbol,
+        tokenId: a.tokenId
+      }));
+
+      await mailService.sendEmail({
+        from: 'me', // Will be handled by service/wallet
+        to: to.split(',').map(e => e.trim()),
+        subject,
+        body,
+        cryptoTransfer: cryptoEnabled ? {
+          enabled: true,
+          assets: cryptoAssets
+        } : undefined
+      });
+
+      toast({
+        title: "Email Sent!",
+        description: "Your message has been sent successfully.",
+      });
+
+      setOpen(false);
+      // Reset form
+      setTo('');
+      setSubject('');
+      setBody('');
+      setCryptoEnabled(false);
+      setAssets([]);
+    } catch (error) {
+      console.error('Failed to send email:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send email",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="sm:max-w-[625px]">
+        <DialogHeader>
+          <DialogTitle>New Message</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="to" className="text-right">
+              To
+            </Label>
+            <Input
+              id="to"
+              className="col-span-3"
+              placeholder="recipient@example.com"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="subject" className="text-right">
+              Subject
+            </Label>
+            <Input
+              id="subject"
+              className="col-span-3"
+              placeholder="Email subject"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+            />
+          </div>
+          <Textarea
+            placeholder="Type your message here..."
+            rows={10}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+          />
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="crypto-enabled"
+              checked={cryptoEnabled}
+              onCheckedChange={(checked) => setCryptoEnabled(Boolean(checked))}
+            />
+            <label
+              htmlFor="crypto-enabled"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Attach Crypto Assets
+            </label>
+          </div>
+          {cryptoEnabled && (
+            <CryptoAttachment assets={assets} onChange={setAssets} />
+          )}
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isLoading}>Cancel</Button>
+          <Button type="submit" onClick={handleSend} disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" />
+                Send {cryptoEnabled && assets.length > 0 && '+ Transfer Crypto'}
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
