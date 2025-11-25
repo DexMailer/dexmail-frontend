@@ -54,7 +54,7 @@ A revolutionary decentralized email platform that combines traditional email fun
 ```
 src/
 ├── app/                    # Next.js app router pages
-│   ├── (auth)/            # Authentication pages (login, register)
+│   ├── (auth)/            # Authentication page (login, register)
 │   ├── (dashboard)/       # Main app pages (inbox, sent, compose)
 │   └── claim/             # Crypto claim flow
 ├── components/            # React components
