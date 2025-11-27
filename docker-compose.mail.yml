@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  mailserver:
+    image: ghcr.io/docker-mailserver/docker-mailserver:latest
+    container_name: dexmail-mailserver
+    hostname: mail.dexmail.app
+    domainname: dexmail.app
+    ports:
+      - "25:25" # SMTP
+      - "587:587" # SMTP Submission (with STARTTLS)
+      - "465:465" # SMTP Submissions (SSL/TLS)
+      - "993:993" # IMAP4 (SSL/TLS)
+      - "995:995" # POP3 (SSL/TLS)
+    volumes:
+      - ./docker-data/dms/mail-data:/var/mail
+      - ./docker-data/dms/mail-state:/var/mail-state
+      - ./docker-data/dms/mail-logs:/var/log/mail
+      - ./docker-data/dms/config:/tmp/docker-mailserver
+      - /etc/localtime:/etc/localtime:ro
+      # Mount existing DKIM keys
+      - /etc/opendkim/keys:/tmp/docker-mailserver/opendkim/keys:ro
+    environment:
+      # General Settings
+      - ENABLE_SPAMASSASSIN=1
+      - ENABLE_CLAMAV=1
+      - ENABLE_FAIL2BAN=1
+      - ENABLE_POSTGREY=0
+
+      # SSL/TLS Settings (disabled for local testing)
+      # - SSL_TYPE=self-signed
+      # - SSL_DOMAIN=mail.dexmail.app
+
+      # DKIM/DMARC/SPF
+      - ENABLE_OPENDKIM=1
+      - ENABLE_OPENDMARC=1
+      - ENABLE_POLICYD_SPF=1
+
+      # Domain and Hostname
+      - OVERRIDE_HOSTNAME=mail.dexmail.app
+      - POSTMASTER_ADDRESS=postmaster@dexmail.app
+
+      # Authentication
+      - PERMIT_DOCKER=network
+      - ENABLE_POP3=1
+      - ENABLE_IMAP=1
+
+      # Logging
+      - LOG_LEVEL=info
+
+      # Other
+      - ONE_DIR=1
+      - DMS_DEBUG=0
+
+    cap_add:
+      - NET_ADMIN
+    restart: unless-stopped
+    stop_grace_period: 1m
+    healthcheck:
+      test: "ss -lntp | grep -E ':25|:587|:993' || exit 1"
+      timeout: 3s
+      retries: 0
