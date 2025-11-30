@@ -144,17 +144,38 @@ class MailService {
 
     console.log('[MailService] Generated CID hash:', cidBytes32);
 
-    // Store the mapping in localStorage for retrieval (Required for current mock implementation)
+    // Store the CID mapping in MongoDB via API
+    try {
+      const storeResponse = await fetch('/api/cid/store', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cidHash: cidBytes32,
+          fullCid: cid
+        })
+      });
+
+      if (storeResponse.ok) {
+        console.log('[MailService] ✅ Stored CID mapping in MongoDB:', cidBytes32, '->', cid);
+      } else {
+        console.warn('[MailService] Failed to store CID in MongoDB, using localStorage fallback');
+      }
+    } catch (apiError) {
+      console.error('[MailService] Error calling CID store API:', apiError);
+    }
+
+    // Also store in localStorage as fallback for offline support
     if (typeof window !== 'undefined') {
       try {
         const cidMap = JSON.parse(localStorage.getItem('ipfs_cid_map') || '{}');
         cidMap[cidBytes32] = cid;
         localStorage.setItem('ipfs_cid_map', JSON.stringify(cidMap));
-        console.log('[MailService] Stored CID mapping:', cidBytes32, '->', cid);
+        console.log('[MailService] Stored CID mapping in localStorage (fallback):', cidBytes32, '->', cid);
       } catch (e) {
-        console.error('[MailService] Failed to store CID mapping:', e);
+        console.error('[MailService] Failed to store CID mapping in localStorage:', e);
       }
     }
+
 
     const recipient = data.to[0];
 
@@ -250,32 +271,54 @@ class MailService {
 
   private async fetchEmailFromIPFS(cidHash: string): Promise<{ subject: string; body: string } | null> {
     try {
+      console.log('[MailService] fetchEmailFromIPFS called with CID hash:', cidHash);
+
       // Skip if it's the dummy CID (all zeros)
       if (cidHash === '0x' + '0'.repeat(64)) {
         console.log('[MailService] Skipping dummy CID');
         return null;
       }
 
-      // Get the actual IPFS CID from localStorage mapping
-      let actualCid: string | null = null;
+      let actualCid: string | undefined;
 
-      if (typeof window !== 'undefined') {
+      // Try to get CID from MongoDB first
+      try {
+        const retrieveResponse = await fetch(`/api/cid/retrieve?cidHash=${encodeURIComponent(cidHash)}`);
+
+        if (retrieveResponse.ok) {
+          const data = await retrieveResponse.json();
+          actualCid = data.fullCid;
+          console.log('[MailService] ✅ Retrieved CID from MongoDB:', { cidHash, actualCid });
+        } else if (retrieveResponse.status === 404) {
+          console.log('[MailService] CID not found in MongoDB, trying localStorage fallback');
+        } else {
+          console.warn('[MailService] MongoDB API error, trying localStorage fallback');
+        }
+      } catch (apiError) {
+        console.error('[MailService] Error calling CID retrieve API:', apiError);
+      }
+
+      // Fallback: Try localStorage
+      if (!actualCid && typeof window !== 'undefined') {
         try {
           const cidMap = JSON.parse(localStorage.getItem('ipfs_cid_map') || '{}');
           actualCid = cidMap[cidHash];
-          console.log('[MailService] Retrieved CID from mapping:', cidHash, '->', actualCid);
+          if (actualCid) {
+            console.log('[MailService] Retrieved CID from localStorage (fallback):', { cidHash, actualCid });
+          }
         } catch (e) {
-          console.error('[MailService] Failed to parse CID map:', e);
+          console.error('[MailService] Failed to parse localStorage CID map:', e);
         }
       }
 
       if (!actualCid) {
-        console.log('[MailService] No CID mapping found for hash:', cidHash);
+        console.warn('[MailService] ⚠️ Could not retrieve CID from MongoDB or localStorage:', cidHash);
+        console.warn('[MailService] This means the email content cannot be retrieved from IPFS');
         return null;
       }
 
-      // Fetch from IPFS via Pinata gateway
-      const gatewayUrl = `https://gateway.pinata.cloud/ipfs/${actualCid}`;
+      // Use ipfs.io gateway which supports CORS
+      const gatewayUrl = `https://ipfs.io/ipfs/${actualCid}`;
       console.log('[MailService] Fetching from IPFS:', gatewayUrl);
 
       const response = await fetch(gatewayUrl);
@@ -286,7 +329,7 @@ class MailService {
       }
 
       const data = await response.json();
-      console.log('[MailService] Successfully fetched email from IPFS');
+      console.log('[MailService] ✅ Successfully fetched email from IPFS:', { subject: data.subject, bodyLength: data.body?.length });
 
       return {
         subject: data.subject || 'No Subject',

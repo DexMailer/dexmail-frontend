@@ -48,10 +48,11 @@ export function MailProvider({ children }: { children: ReactNode }) {
                 const dateStr = new Date(timestamp).toISOString();
                 const status = mailService.getEmailStatus(m.messageId);
 
+                // For inbox: 'from' is the sender, 'to' is the recipient (current user)
                 return {
                     id: m.messageId,
-                    name: m.from,
-                    email: m.from,
+                    name: m.from, // Display sender's email in the list
+                    email: m.from, // Sender's email for reply-to
                     subject: m.subject,
                     text: (m.body || '').substring(0, 100) + '...',
                     date: dateStr,
@@ -71,10 +72,11 @@ export function MailProvider({ children }: { children: ReactNode }) {
                 const timestamp = parseInt(m.timestamp, 10) * 1000;
                 const dateStr = new Date(timestamp).toISOString();
 
+                // For sent: 'from' is the sender (current user), 'to' is the recipient
                 return {
                     id: m.messageId,
-                    name: m.to[0] || 'Unknown',
-                    email: m.to[0] || '',
+                    name: m.to[0] || 'Unknown', // Display recipient's email in the list
+                    email: m.to[0] || '', // Recipient's email
                     subject: m.subject,
                     text: (m.body || '').substring(0, 100) + '...',
                     date: dateStr,
