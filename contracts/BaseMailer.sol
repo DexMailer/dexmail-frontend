@@ -132,6 +132,7 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
     
     // Email registration
     mapping(string => address) public emailOwner;
+    mapping(bytes32 => address) public emailHashToOwner;
     mapping(address => string) public addressToEmail;
     
     // Mail inbox
@@ -205,6 +206,7 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
         if (emailOwner[email] != address(0)) revert EmailTaken();
         
         emailOwner[email] = msg.sender;
+        emailHashToOwner[keccak256(abi.encodePacked(email))] = msg.sender;
         addressToEmail[msg.sender] = email;
         emit EmailRegistered(email, msg.sender);
     }
@@ -218,6 +220,7 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
         if (userAddress == address(0)) revert InvalidAddress();
         
         emailOwner[email] = userAddress;
+        emailHashToOwner[keccak256(abi.encodePacked(email))] = userAddress;
         addressToEmail[userAddress] = email;
         emit EmailRegistered(email, userAddress);
     }
@@ -304,16 +307,21 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
         if (emailHash == bytes32(0)) revert InvalidEmailHash();
         if (transferCount[emailHash] >= maxTransfersPerEmail) revert TransferLimitExceeded();
         
-        address walletAddress = getWalletAddress(emailHash);
+        address recipient = emailHashToOwner[emailHash];
+        bool isDirectTransfer = recipient != address(0);
         
-        // Transfer funds directly to deterministic wallet address
+        if (!isDirectTransfer) {
+            recipient = getWalletAddress(emailHash);
+        }
+        
+        // Transfer funds
         if (token == address(0)) {
             if (msg.value != amount) revert InvalidAmount();
-            (bool success, ) = walletAddress.call{value: amount}("");
+            (bool success, ) = recipient.call{value: amount}("");
             if (!success) revert TransferFailed();
         } else {
             if (msg.value != 0) revert InvalidAmount();
-            if (!IERC20(token).transferFrom(msg.sender, walletAddress, amount)) {
+            if (!IERC20(token).transferFrom(msg.sender, recipient, amount)) {
                 revert TransferFailed();
             }
         }
@@ -326,7 +334,7 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
             sender: msg.sender,
             recipientEmail: "",
             timestamp: block.timestamp,
-            claimed: false
+            claimed: isDirectTransfer
         }));
         
         transferCount[emailHash]++;
@@ -343,15 +351,20 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
         if (nftContract == address(0)) revert InvalidAddress();
         if (transferCount[emailHash] >= maxTransfersPerEmail) revert TransferLimitExceeded();
         
-        address walletAddress = getWalletAddress(emailHash);
+        address recipient = emailHashToOwner[emailHash];
+        bool isDirectTransfer = recipient != address(0);
+        
+        if (!isDirectTransfer) {
+            recipient = getWalletAddress(emailHash);
+        }
         
         // Verify sender owns the NFT
         if (IERC721(nftContract).ownerOf(tokenId) != msg.sender) revert NotNFTOwner();
         
         // Use safeTransferFrom for better compatibility
-        try IERC721(nftContract).safeTransferFrom(msg.sender, walletAddress, tokenId) {
+        try IERC721(nftContract).safeTransferFrom(msg.sender, recipient, tokenId) {
             // Verify transfer was successful
-            if (IERC721(nftContract).ownerOf(tokenId) != walletAddress) {
+            if (IERC721(nftContract).ownerOf(tokenId) != recipient) {
                 revert NFTTransferFailed();
             }
         } catch {
@@ -366,7 +379,7 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
             sender: msg.sender,
             recipientEmail: "",
             timestamp: block.timestamp,
-            claimed: false
+            claimed: isDirectTransfer
         }));
         
         transferCount[emailHash]++;
@@ -424,10 +437,16 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
         bytes32 emailHash = keccak256(abi.encodePacked(recipientEmail));
         if (transferCount[emailHash] >= maxTransfersPerEmail) revert TransferLimitExceeded();
         
-        address walletAddress = getWalletAddress(emailHash);
+        address recipient = emailHashToOwner[emailHash];
+        bool isDirectTransfer = recipient != address(0);
+        
+        if (!isDirectTransfer) {
+            recipient = getWalletAddress(emailHash);
+        }
         
         // Check if recipient is registered
-        (bool registered, bool walletDeployed) = isRecipientRegistered(recipientEmail);
+        // (bool registered, bool walletDeployed) = isRecipientRegistered(recipientEmail);
+        // We don't need this check anymore as we check emailHashToOwner directly
         
         // Transfer assets based on registration status
         if (isNft) {
@@ -435,8 +454,8 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
             if (IERC721(token).ownerOf(amount) != msg.sender) revert NotNFTOwner();
             
             // For NFTs, always transfer to deterministic wallet address
-            try IERC721(token).safeTransferFrom(msg.sender, walletAddress, amount) {
-                if (IERC721(token).ownerOf(amount) != walletAddress) {
+            try IERC721(token).safeTransferFrom(msg.sender, recipient, amount) {
+                if (IERC721(token).ownerOf(amount) != recipient) {
                     revert NFTTransferFailed();
                 }
             } catch {
@@ -445,14 +464,14 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
         } else if (token == address(0)) {
             // Native ETH transfer
             if (msg.value != amount) revert InvalidAmount();
-            (bool success, ) = walletAddress.call{value: amount}("");
+            (bool success, ) = recipient.call{value: amount}("");
             if (!success) revert TransferFailed();
         } else {
             // ERC20 token transfer
             if (msg.value != 0) revert InvalidAmount();
             
             // Deduct tokens from sender's balance via transferFrom
-            if (!IERC20(token).transferFrom(msg.sender, walletAddress, amount)) {
+            if (!IERC20(token).transferFrom(msg.sender, recipient, amount)) {
                 revert TransferFailed();
             }
         }
@@ -465,7 +484,7 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
             sender: msg.sender,
             recipientEmail: recipientEmail,
             timestamp: block.timestamp,
-            claimed: registered && walletDeployed
+            claimed: isDirectTransfer
         }));
         
         transferCount[emailHash]++;
@@ -534,39 +553,52 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
         
         bytes32 emailHash = keccak256(abi.encodePacked(email));
         
-        // Check if wallet already deployed
-        address walletAddress = getWalletAddress(emailHash);
-        if (isWalletDeployed[walletAddress]) revert WalletAlreadyClaimed();
-        
-        // Deploy the wallet using CREATE2
-        bytes memory bytecode = abi.encodePacked(
-            type(EmailWallet).creationCode,
-            abi.encode(address(this))
-        );
-        
-        address deployedWallet = Create2.deploy(0, emailHash, bytecode);
-        if (deployedWallet != walletAddress) revert TransferFailed();
-        
-        // Initialize the wallet
-        EmailWallet(payable(deployedWallet)).initialize(claimantOwner);
-        
-        emailToWallet[emailHash] = walletAddress;
-        isWalletDeployed[walletAddress] = true;
-        
-        // Mark all transfers as claimed
-        CryptoTransfer[] storage transfers = pendingTransfers[emailHash];
-        for (uint256 i = 0; i < transfers.length; i++) {
-            transfers[i].claimed = true;
-        }
-        
         // Register email to address mapping if not already registered
         if (emailOwner[email] == address(0)) {
             emailOwner[email] = claimantOwner;
+            emailHashToOwner[emailHash] = claimantOwner;
             addressToEmail[claimantOwner] = email;
             emit EmailRegistered(email, claimantOwner);
         }
+
+        // Check if there are any unclaimed transfers
+        CryptoTransfer[] storage transfers = pendingTransfers[emailHash];
+        bool hasUnclaimed = false;
+        for (uint256 i = 0; i < transfers.length; i++) {
+            if (!transfers[i].claimed) {
+                hasUnclaimed = true;
+                transfers[i].claimed = true;
+            }
+        }
+
+        address walletAddress = getWalletAddress(emailHash);
+
+        // Only deploy wallet if there are unclaimed transfers (which are at the wallet address)
+        // or if the wallet is already deployed (to be safe/consistent, though maybe not strictly necessary if empty)
+        // But if we have unclaimed transfers, they are definitely at the walletAddress, so we MUST deploy.
+        if (hasUnclaimed && !isWalletDeployed[walletAddress]) {
+             // Deploy the wallet using CREATE2
+            bytes memory bytecode = abi.encodePacked(
+                type(EmailWallet).creationCode,
+                abi.encode(address(this))
+            );
+            
+            address deployedWallet = Create2.deploy(0, emailHash, bytecode);
+            if (deployedWallet != walletAddress) revert TransferFailed();
+            
+            // Initialize the wallet
+            EmailWallet(payable(deployedWallet)).initialize(claimantOwner);
+            
+            emailToWallet[emailHash] = walletAddress;
+            isWalletDeployed[walletAddress] = true;
+            
+            emit WalletCreated(emailHash, walletAddress);
+        }
         
-        emit WalletCreated(emailHash, walletAddress);
+        // If we didn't deploy, we still "claimed" the transfers (marked them as claimed).
+        // If they were at the wallet address, we deployed.
+        // If they were direct (claimed=true already), we didn't need to do anything.
+        
         emit WalletClaimed(emailHash, walletAddress, claimantOwner);
     }
     
