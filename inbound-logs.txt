@@ -34,3 +34,15 @@
 [2025-12-05T11:09:05.412Z] Uploaded to IPFS: QmbDatbJo7yFnLGbHEFU4mLhECxezCk9GG3W7U5YpwirA6
 [2025-12-05T11:09:05.412Z] Indexing for recipient: olayson@dexmail.app
 [2025-12-05T11:09:06.797Z] Indexed on chain. Tx: 0xf0e239dea033edcde7788595eede2ac65079fff99ec969de2e97afeca9fea4d2
+[2025-12-05T11:19:44.658Z] Inbound webhook triggered
+[2025-12-05T11:19:44.658Z] FormData received
+[2025-12-05T11:19:44.658Z] Received email from: Abdulsamad Abdulganiyu <abdulganiyu838@gmail.com> to: olayson@dexmail.app subject: Test
+[2025-12-05T11:19:46.061Z] Uploaded to IPFS: QmRVijB3B6ASyhq8FEHkMG9iQqSKD7tL884Hn4HLQ11FFL
+[2025-12-05T11:19:46.062Z] Indexing for recipient: olayson@dexmail.app
+[2025-12-05T11:19:47.366Z] Indexed on chain. Tx: 0xed32c2cd20d85378b99518b60de1d6f46a321890a7e540ea5176c982821fa56c
+[2025-12-05T11:36:19.772Z] Inbound webhook triggered
+[2025-12-05T11:36:19.773Z] FormData received
+[2025-12-05T11:36:19.773Z] Received email from: Abdulaleem Zakariyah <zakkycrypt@gmail.com> to: olayson@dexmail.app subject: Test
+[2025-12-05T11:36:21.092Z] Uploaded to IPFS: QmTLTZFDwvRiJK6HsdNXbbwFpGXfddLfgQp41ukNEp6AVV
+[2025-12-05T11:36:21.093Z] Indexing for recipient: olayson@dexmail.app
+[2025-12-05T11:36:23.480Z] Indexed on chain. Tx: 0xdf32dff4b4c8f89b4699a1604dc55a0491d8c2a95939318d69c5fabad2f24c91
