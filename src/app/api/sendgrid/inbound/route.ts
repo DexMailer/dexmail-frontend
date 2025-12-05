@@ -11,6 +11,8 @@ export async function POST(req: NextRequest) {
         // Parse multipart/form-data
         const formData = await req.formData();
         log('FormData received');
+        const keys = Array.from(formData.keys());
+        log(`FormData keys: ${keys.join(', ')}`);
 
         // Extract fields
         const to = formData.get('to') as string;
@@ -18,6 +20,12 @@ export async function POST(req: NextRequest) {
         const subject = formData.get('subject') as string;
         const text = formData.get('text') as string;
         const html = formData.get('html') as string;
+        const headers = formData.get('headers') as string; // Capture headers
+
+        log(`Raw From: ${from}`);
+        log(`Raw To: ${to}`);
+        log(`Raw Subject: ${subject}`);
+        log(`Raw Headers: ${headers ? headers.substring(0, 100) : 'null'}...`);
         const senderIp = formData.get('sender_ip') as string;
         const dkims = formData.get('dkim') as string;
         const spf = formData.get('SPF') as string;
@@ -26,6 +34,7 @@ export async function POST(req: NextRequest) {
         const email = formData.get('email') as string; // Raw email content if available
 
         log(`Received email from: ${from} to: ${to} subject: ${subject}`);
+        log(`Text length: ${text ? text.length : 'null'}, HTML length: ${html ? html.length : 'null'}`);
         console.log(`[SendGrid Inbound] Received email from ${from} to ${to}`);
 
         // 1. Upload to IPFS
@@ -86,8 +95,9 @@ export async function POST(req: NextRequest) {
         const txHash = await indexMailOnChain(
             ipfsResult.IpfsHash,
             recipient,
-            true, // isExternal = true because it came from outside (SendGrid)
-            false // hasCrypto = false for now
+            from, // originalSender
+            true, // isExternal
+            false // hasCrypto
         );
 
         console.log(`[SendGrid Inbound] Indexed on chain. Tx: ${txHash}`);

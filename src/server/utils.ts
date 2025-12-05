@@ -56,32 +56,17 @@ export async function uploadJSONToIPFS(data: any) {
 export async function indexMailOnChain(
     cid: string,
     recipient: string,
+    originalSender: string,
     isExternal: boolean,
     hasCrypto: boolean
 ) {
     if (!walletClient || !account) throw new Error('Relayer wallet not configured');
 
-    // CID is now a string in the contract
-    const originalSender = isExternal ? "sendgrid-inbound" : ""; // Or pass it as an argument?
-    // Wait, I need to update the function signature to accept originalSender if I want to pass it correctly.
-    // But for now, let's just use the CID string.
-
-    // Actually, I should update the function signature to match the contract.
-    // But wait, the previous plan said "Update indexMailOnChain to pass the full CID string and the sender email."
-    // So I should update the signature.
-
-    // Let's do a quick fix here to match the plan.
-    // But I can't change the signature in this tool call easily if I don't change the caller.
-    // The caller is in route.ts.
-
-    // Let's just update the body for now and I will update the signature in the next step properly.
-    // Wait, I can update the signature here.
-
     const hash = await walletClient.writeContract({
         address: CONTRACT_ADDRESS,
         abi: baseMailerAbi,
         functionName: 'indexMail',
-        args: [cid, recipient, isExternal ? "External Sender" : "", isExternal, hasCrypto]
+        args: [cid, recipient, originalSender, isExternal, hasCrypto]
     });
 
     return hash;
