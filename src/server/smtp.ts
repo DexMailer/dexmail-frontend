@@ -58,6 +58,7 @@ const server = new SMTPServer({
                     await indexMailOnChain(
                         ipfsResult.IpfsHash,
                         recipient.text,
+                        fromText || "", // originalSender
                         false, // isExternal
                         false // hasCrypto (Need to parse body for markers)
                     );
