@@ -282,11 +282,31 @@ class MailService {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             to: recipient,
-            from: 'noreply@dexmail.app', // Verified sender
+            from: data.from, // Sending directly as the user (requires Domain Auth)
             replyTo: data.from, // User's address/email so replies go to them
             subject: data.subject,
             text: emailBody, // Use the body that includes claim instructions
-            html: emailBody.replace(/\n/g, '<br/>') // Simple text-to-html conversion
+            html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${data.subject}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .footer { margin-top: 30px; font-size: 12px; color: #888; border-top: 1px solid #eee; padding-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    ${emailBody.replace(/\n/g, '<br/>')}
+    <div class="footer">
+      <p>Sent via DexMail - The Decentralized Email Protocol</p>
+    </div>
+  </div>
+</body>
+</html>`
           })
         });
 
