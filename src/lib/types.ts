@@ -39,6 +39,7 @@ export interface EmailMessage {
     body: string;
     timestamp: string;
   };
+  inReplyTo?: string;
 }
 
 export interface CryptoTransfer {
