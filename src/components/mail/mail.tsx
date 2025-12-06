@@ -1,5 +1,8 @@
 'use client';
 
+import { mailService } from '@/lib/mail-service';
+import { format } from 'date-fns';
+
 import React, { useEffect, useState } from 'react';
 import { MailList } from './mail-list';
 import { MailDisplay } from './mail-display';
@@ -225,6 +228,9 @@ export function MailComponent({
   const [selectedMailIds, setSelectedMailIds] = React.useState<string[]>([]);
   const [activeCategory, setActiveCategory] = React.useState(category);
   const isMobile = useIsMobile();
+  const [fetchedMail, setFetchedMail] = useState<Mail | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const { user } = useAuth(); // Need user email for fetching
 
   // Update activeCategory when prop changes, but only if not in mobile view (or handle differently if needed)
   // For this specific request, we want mobile to control its own state via tabs
@@ -238,7 +244,12 @@ export function MailComponent({
   // Use context mails if available, otherwise use initial mails
   const displayMails = mails.length > 0 ? mails : initialMails;
 
-  const selectedMail = displayMails.find((item) => item.id === selectedMailId);
+  const selectedMail = React.useMemo(() => {
+    if (!selectedMailId) return null;
+    const found = displayMails.find((item) => item.id === selectedMailId);
+    if (found) return found;
+    return fetchedMail && fetchedMail.id === selectedMailId ? fetchedMail : null;
+  }, [selectedMailId, displayMails, fetchedMail]);
 
   // Filter mails based on activeCategory or label
   const filteredMails = React.useMemo(() => {
@@ -271,25 +282,78 @@ export function MailComponent({
   }, [displayMails, activeCategory, label]);
 
   const handleSelectMail = (mail: Mail) => {
-    if (mail.status === 'draft') {
-      // Draft handling is a bit tricky because ComposeDialog is usually triggered by a button.
-      // We need a way to programmatically open it with data.
-      // For now, let's just set the selected mail ID so it "selects" it, but we render ComposeDialog instead of MailDisplay?
-      // Actually, we can just render a ComposeDialog that is open by default if we have a selected draft.
-      // But ComposeDialog is designed as a wrapper around a trigger.
-      // Let's modify the render logic below.
-      setSelectedMailId(mail.id);
-    } else {
-      setSelectedMailId(mail.id);
-    }
+    // Determine strict equality or just id match
+    if (mail.id === selectedMailId) return;
+
+    // Reset fetched mail when selecting a new one from list
+    setFetchedMail(null);
+    setSelectedMailId(mail.id);
   };
 
   const handleToggleMailSelection = (mailId: string) => {
-    setSelectedMailIds((prev) =>
-      prev.includes(mailId)
+    setSelectedMailIds((prev) => {
+      const newSelection = prev.includes(mailId)
         ? prev.filter((id) => id !== mailId)
-        : [...prev, mailId]
-    );
+        : [...prev, mailId];
+      return newSelection;
+    });
+  };
+
+  const handleNavigateToMail = async (mailId: string) => {
+    if (mailId === selectedMailId) return;
+
+    // 1. Check if mail exists in current view (displayMails)
+    const targetMail = displayMails.find(m => m.id === mailId);
+    if (targetMail) {
+      setFetchedMail(null);
+      setSelectedMailId(mailId);
+      return;
+    }
+
+    // 2. Check if it's the already fetched mail
+    if (fetchedMail && fetchedMail.id === mailId) {
+      setSelectedMailId(mailId);
+      return;
+    }
+
+    // 3. Fetch from service if not found
+    if (!user?.email) {
+      console.warn('Cannot fetch mail: User not authenticated');
+      return;
+    }
+
+    setIsNavigating(true);
+    try {
+      console.log('Fetching missing mail:', mailId);
+      const message = await mailService.getMessage(mailId, user.email);
+
+      if (message) {
+        // Convert EmailMessage to Mail
+        const newMail: Mail = {
+          id: message.messageId,
+          name: message.from.split('@')[0] || 'Unknown', // Simple name extraction
+          email: message.from,
+          subject: message.subject,
+          text: message.body?.slice(0, 100) || '',
+          date: new Date(Number(message.timestamp) * 1000).toISOString(),
+          read: true, // If we navigate to it, we'll mark it read in display
+          labels: [],
+          status: 'inbox', // Defaulting to inbox context for viewed mail
+          body: message.body || '',
+          hasCryptoTransfer: message.hasCryptoTransfer,
+          inReplyTo: message.inReplyTo
+        };
+
+        setFetchedMail(newMail);
+        setSelectedMailId(mailId);
+      } else {
+        console.error('Mail not found:', mailId);
+      }
+    } catch (error) {
+      console.error('Error navigating to mail:', error);
+    } finally {
+      setIsNavigating(false);
+    }
   };
 
   const handleBack = () => {
@@ -348,7 +412,7 @@ export function MailComponent({
                   </div>
                 </ComposeDialog>
               ) : (
-                <MailDisplay mail={selectedMail} onBack={handleBack} />
+                <MailDisplay mail={selectedMail} onBack={handleBack} onNavigateToMail={handleNavigateToMail} />
               )
             ) : (
               <MailList
@@ -389,7 +453,7 @@ export function MailComponent({
         }}
       />
       <div className="flex-1 w-full">
-        {isLoading && !selectedMail ? (
+        {(isLoading || isNavigating) && !selectedMail ? (
           <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
         ) : selectedMail ? (
           selectedMail.status === 'draft' ? (
@@ -442,7 +506,7 @@ export function MailComponent({
               </div>
             </ComposeDialog>
           ) : (
-            <MailDisplay mail={selectedMail} onBack={handleBack} />
+            <MailDisplay mail={selectedMail} onBack={handleBack} onNavigateToMail={handleNavigateToMail} />
           )
         ) : (
           <MailList

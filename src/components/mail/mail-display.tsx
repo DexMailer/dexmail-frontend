@@ -1,6 +1,8 @@
 
 'use client';
 
+import { cn } from '@/lib/utils';
+
 import {
   Archive,
   ArrowLeft,
@@ -32,16 +34,26 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Textarea } from '../ui/textarea';
 import { useMail } from '@/contexts/mail-context';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { ComposeDialog } from './compose-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { mailService } from '@/lib/mail-service';
+import { useAuth } from '@/contexts/auth-context';
+import { Loader2 } from 'lucide-react';
 
 interface MailDisplayProps {
   mail: Mail | null;
   onBack?: () => void;
+  onNavigateToMail?: (mailId: string) => void;
 }
 
-export function MailDisplay({ mail, onBack }: MailDisplayProps) {
+export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps) {
   const isMobile = useIsMobile();
   const { markAsRead, markAsUnread, moveToArchive, moveToSpam, moveToTrash, restoreFromTrash, getEmailStatus } = useMail();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [replyBody, setReplyBody] = useState('');
+  const [isSendingReply, setIsSendingReply] = useState(false);
 
   if (!mail) {
     return (
@@ -93,6 +105,63 @@ export function MailDisplay({ mail, onBack }: MailDisplayProps) {
   );
 
   const mailDate = new Date(mail.date);
+
+  const handleReply = async () => {
+    if (!replyBody.trim()) {
+      toast({
+        title: "Empty Reply",
+        description: "Please type a message to reply.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!user?.email) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to reply.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSendingReply(true);
+    try {
+      const fullBody = `${replyBody}\n\nOn ${format(mailDate, "PPP p")}, ${mail.name} wrote:\n> ${mail.body.replace(/\n/g, '\n> ')}`;
+
+      await mailService.sendEmail({
+        from: user.email,
+        to: [mail.email], // Reply to sender
+        subject: mail.subject.startsWith('Re:') ? mail.subject : `Re: ${mail.subject}`,
+        body: fullBody,
+        inReplyTo: mail.id
+      });
+
+      toast({
+        title: "Reply Sent",
+        description: "Your reply has been sent successfully."
+      });
+
+      setReplyBody(''); // Clear textarea
+    } catch (error) {
+      console.error('Failed to send reply:', error);
+      toast({
+        title: "Error Sending Reply",
+        description: "Failed to send your reply. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSendingReply(false);
+    }
+  };
+
+  const getForwardData = () => {
+    return {
+      to: '',
+      subject: mail.subject.startsWith('Fwd:') ? mail.subject : `Fwd: ${mail.subject}`,
+      body: `\n\n---------- Forwarded message ----------\nFrom: ${mail.name} <${mail.email}>\nDate: ${format(mailDate, "PPP p")}\nSubject: ${mail.subject}\nTo: Me\n\n${mail.body}`
+    };
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -195,6 +264,17 @@ export function MailDisplay({ mail, onBack }: MailDisplayProps) {
         </div>
         <div className="p-4 pt-0">
           <h1 className="text-2xl font-bold">{mail.subject}</h1>
+          {mail.inReplyTo && (
+            <div className="mt-2">
+              <Button
+                variant="link"
+                className="p-0 h-auto text-muted-foreground text-xs"
+                onClick={() => onNavigateToMail?.(mail.inReplyTo!)}
+              >
+                In reply to a message
+              </Button>
+            </div>
+          )}
         </div>
 
         {mail.hasCryptoTransfer && (
@@ -262,25 +342,112 @@ export function MailDisplay({ mail, onBack }: MailDisplayProps) {
           </div>
         )}
 
-        {mail && <div className="flex-1 whitespace-pre-wrap p-4 pt-0 text-sm">
-          {mail.body}
-        </div>}
+        {mail && (
+          <div className="flex-1 p-4 pt-0 text-sm space-y-4">
+            {(() => {
+              // Parsing Logic
+              const lines = mail.body.split('\n');
+              const segments: { type: 'text' | 'quote'; content: string[] }[] = [];
+              let currentSegment: { type: 'text' | 'quote'; content: string[] } = { type: 'text', content: [] };
+
+              lines.forEach((line) => {
+                const isQuote = line.trim().startsWith('>') || line.trim().startsWith('On ') && line.includes('wrote:');
+
+                // Heuristic: "On ... wrote:" often starts a quote block even without >
+                // But for simplicity and safety, let's mainly rely on >.
+                // If we switch types, push current and start new.
+                // Exception: If we are in 'text' mode and see a quote indicator, switch.
+                // If in 'quote' mode, we tend to stay in quote mode unless it's clearly a new disjoint block? 
+                // Actually, standard email replies are usually:
+                // New Text
+                // > Old Text
+                // 
+                // So we just check if line starts with >
+
+                const lineIsQuote = line.trim().startsWith('>');
+
+                if (lineIsQuote) {
+                  if (currentSegment.type !== 'quote') {
+                    if (currentSegment.content.length > 0) segments.push(currentSegment);
+                    currentSegment = { type: 'quote', content: [] };
+                  }
+                  currentSegment.content.push(line.replace(/^>\s?/, '')); // Remove the > marker
+                } else {
+                  // Check for "On ... wrote:" header which usually precedes quotes
+                  if (line.trim().startsWith('On ') && line.endsWith('wrote:')) {
+                    if (currentSegment.type !== 'quote') {
+                      if (currentSegment.content.length > 0) segments.push(currentSegment);
+                      currentSegment = { type: 'quote', content: [] };
+                    }
+                    currentSegment.content.push(line);
+                  } else {
+                    if (currentSegment.type === 'quote') {
+                      // If we were in a quote but find a blank line, it might just be spacing in the quote.
+                      // But if it's text, it's ambiguous. Standard clients indent everything.
+                      // Let's assume if it doesn't start with >, it's text, UNLESS the previous line was a quote and this is empty.
+                      if (line.trim() === '') {
+                        currentSegment.content.push(line);
+                      } else {
+                        // Break out of quote
+                        if (currentSegment.content.length > 0) segments.push(currentSegment);
+                        currentSegment = { type: 'text', content: [] };
+                        currentSegment.content.push(line);
+                      }
+                    } else {
+                      currentSegment.content.push(line);
+                    }
+                  }
+                }
+              });
+
+              if (currentSegment.content.length > 0) segments.push(currentSegment);
+
+              // Reverse segments to show oldest (history) first, then newest (latest reply)
+              return segments.reverse().map((segment, index) => (
+                <div
+                  key={index}
+                  className={cn(
+                    "whitespace-pre-wrap rounded-lg p-3",
+                    segment.type === 'quote'
+                      ? "bg-muted/50 text-muted-foreground border-l-4 border-muted italic text-xs"
+                      : "bg-card text-card-foreground border shadow-sm"
+                  )}
+                >
+                  {segment.content.join('\n').trim()}
+                </div>
+              ));
+            })()}
+          </div>
+        )}
         <Separator className="mt-auto" />
         <div className="p-4">
           <div className="grid gap-4">
             <Textarea
               className="p-4"
               placeholder={`Reply to ${mail.name}...`}
+              value={replyBody}
+              onChange={(e) => setReplyBody(e.target.value)}
             />
             <div className="flex items-center gap-2">
-              <Button size="sm">
-                <Send className="mr-2 h-4 w-4" />
-                Send
+              <Button size="sm" onClick={handleReply} disabled={isSendingReply}>
+                {isSendingReply ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Send
+                  </>
+                )}
               </Button>
-              <Button size="sm" variant="ghost">
-                <Forward className="mr-2 h-4 w-4" />
-                Forward
-              </Button>
+              <ComposeDialog initialData={getForwardData()}>
+                <Button size="sm" variant="ghost">
+                  <Forward className="mr-2 h-4 w-4" />
+                  Forward
+                </Button>
+              </ComposeDialog>
             </div>
           </div>
         </div>

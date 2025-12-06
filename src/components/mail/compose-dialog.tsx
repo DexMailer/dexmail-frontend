@@ -36,13 +36,13 @@ export function ComposeDialog({
   const [body, setBody] = useState(initialData?.body || '');
 
   // Update state when initialData changes or dialog opens
-  useState(() => {
+  useEffect(() => {
     if (open && initialData) {
       setTo(initialData.to);
       setSubject(initialData.subject);
       setBody(initialData.body);
     }
-  });
+  }, [open, initialData]);
   const [cryptoEnabled, setCryptoEnabled] = useState(false);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(false);

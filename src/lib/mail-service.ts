@@ -15,6 +15,7 @@ export interface SendEmailData {
     enabled: boolean;
     assets: CryptoAsset[];
   };
+  inReplyTo?: string;
 }
 
 export interface SendEmailResponse {
@@ -123,7 +124,8 @@ class MailService {
         timestamp: new Date().toISOString(),
         cryptoTransfer: data.cryptoTransfer,
         claimCode: claimCode,
-        isDirectTransfer: isDirectTransfer
+        isDirectTransfer: isDirectTransfer,
+        inReplyTo: data.inReplyTo
       })
     });
 
@@ -317,7 +319,7 @@ class MailService {
     };
   }
 
-  private async fetchEmailFromIPFS(cidHash: string): Promise<{ subject: string; body: string; from?: string } | null> {
+  private async fetchEmailFromIPFS(cidHash: string): Promise<{ subject: string; body: string; from?: string; inReplyTo?: string } | null> {
     try {
       console.log('[MailService] fetchEmailFromIPFS called with CID hash:', cidHash);
 
@@ -383,7 +385,8 @@ class MailService {
       return {
         subject: data.subject || 'No Subject',
         body: data.body || '',
-        from: data.from
+        from: data.from,
+        inReplyTo: data.inReplyTo
       };
     } catch (error) {
       console.error('[MailService] Error fetching from IPFS:', error);
@@ -480,7 +483,8 @@ class MailService {
             body: body,
             timestamp: mail.timestamp.toString(),
             hasCryptoTransfer: mail.hasCrypto,
-            ipfsCid: mail.cid
+            ipfsCid: mail.cid,
+            inReplyTo: ipfsContent?.inReplyTo
           };
 
           messages.push(newMessage);
@@ -591,7 +595,8 @@ class MailService {
             body: body,
             timestamp: mail.timestamp.toString(),
             hasCryptoTransfer: mail.hasCrypto,
-            ipfsCid: cidHash
+            ipfsCid: cidHash,
+            inReplyTo: ipfsContent?.inReplyTo
           };
 
           messages.push(newMessage);

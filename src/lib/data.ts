@@ -12,6 +12,7 @@ export type Mail = {
   status: 'inbox' | 'sent' | 'draft' | 'spam' | 'archive' | 'trash';
   hasCryptoTransfer?: boolean;
   assets?: any[]; // Using any[] to avoid circular deps or complex types for now
+  inReplyTo?: string;
 };
 
 export const mails: Mail[] = [
