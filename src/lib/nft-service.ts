@@ -1,123 +1,41 @@
-import {
-  NFTInfo,
-  NFTTransfer,
-  NFTBatchResponse,
-  NFTApprovalData,
-  NFTApprovalAllData,
-  NFTApprovalResponse
-} from './types';
-import { cryptoService } from './crypto-service';
 
-export interface SendNFTData extends NFTTransfer {
-  useGasSponsoring?: boolean;
+export interface NFT {
+  id: string;
+  name: string;
+  collection: string;
+  imageUrl: string;
+  imageHint: string;
 }
 
-export interface SendNFTResponse {
-  success: boolean;
-  transactionHash: string;
-  recipientEmail: string;
-  contractAddress: string;
-  tokenId: string;
-}
+export const nftService = {
+  async getNfts(walletAddress: string): Promise<NFT[]> {
+    if (!walletAddress) return [];
 
-export interface BatchNFTData {
-  transfers: NFTTransfer[];
-  useGasSponsoring?: boolean;
-}
+    try {
+      console.log('[NftService] Fetching NFTs for:', walletAddress);
+      // Call our internal API proxy to avoid CORS
+      const response = await fetch(`/api/nfts?address=${walletAddress}`);
 
-class NFTService {
-  async sendNFT(data: SendNFTData, senderKey: string): Promise<SendNFTResponse> {
-    const response = await cryptoService.sendCrypto({
-      recipientEmail: data.recipientEmail,
-      senderEmail: '', // Current user
-      assets: [{
-        type: 'nft',
-        token: data.contractAddress,
-        tokenId: data.tokenId
-      }]
-    });
+      if (!response.ok) {
+        console.warn(`[NftService] API proxy failed: ${response.status} ${response.statusText}`);
+        return [];
+      }
 
-    return {
-      success: true,
-      transactionHash: response.claimToken,
-      recipientEmail: data.recipientEmail,
-      contractAddress: data.contractAddress,
-      tokenId: data.tokenId
-    };
-  }
+      const data = await response.json();
 
-  async batchSendNFTs(data: BatchNFTData, senderKey: string): Promise<NFTBatchResponse> {
-    // Not implemented
-    return {
-      success: false,
-      results: [],
-      successCount: 0,
-      totalCount: data.transfers.length
-    };
-  }
+      if (!data.nfts) return [];
 
-  async getNFTMetadata(contractAddress: string, tokenId: string): Promise<NFTInfo> {
-    // Should fetch from NFT contract
-    // For now return mock
-    return {
-      contractAddress,
-      tokenId,
-      metadata: {
-        name: `NFT #${tokenId}`,
-        description: 'Mock NFT',
-        image: 'https://via.placeholder.com/150'
-      },
-      owner: '',
-      tokenURI: ''
-    };
-  }
+      return data.nfts.map((nft: any) => ({
+        id: `${nft.contract}-${nft.identifier}`,
+        name: nft.name || `#${nft.identifier}`,
+        collection: nft.collection || 'Unknown Collection',
+        imageUrl: nft.image_url || nft.display_image_url || 'https://via.placeholder.com/300?text=No+Image',
+        imageHint: nft.description || 'NFT Image'
+      }));
 
-  async approveNFT(data: NFTApprovalData, senderKey: string): Promise<NFTApprovalResponse> {
-    // Should call approve on NFT contract
-    return {
-      success: true,
-      transactionHash: '0x...',
-      contractAddress: data.contractAddress,
-      tokenId: data.tokenId,
-      spender: data.spender,
-      approved: true
-    };
-  }
-
-  async approveAllNFTs(data: NFTApprovalAllData, senderKey: string): Promise<NFTApprovalResponse> {
-    return {
-      success: true,
-      transactionHash: '0x...',
-      contractAddress: data.contractAddress,
-      operator: data.operator,
-      approved: data.approved
-    };
-  }
-
-  async isNFT(contractAddress: string, tokenId: string): Promise<boolean> {
-    return true;
-  }
-
-  formatNFTName(nftInfo: NFTInfo): string {
-    return `${nftInfo.metadata.name} #${nftInfo.tokenId}`;
-  }
-
-  getNFTImageUrl(nftInfo: NFTInfo, fallback?: string): string {
-    if (nftInfo.metadata.image.startsWith('ipfs://')) {
-      return nftInfo.metadata.image.replace('ipfs://', 'https://ipfs.io/ipfs/');
+    } catch (error) {
+      console.error('[NftService] Error fetching NFTs:', error);
+      return [];
     }
-    return nftInfo.metadata.image || fallback || '';
   }
-
-  getNFTAttributesMap(nftInfo: NFTInfo): Record<string, string> {
-    if (!nftInfo.metadata.attributes) return {};
-
-    return nftInfo.metadata.attributes.reduce((acc, attr) => {
-      acc[attr.trait_type] = attr.value;
-      return acc;
-    }, {} as Record<string, string>);
-  }
-}
-
-export const nftService = new NFTService();
-export default NFTService;
+};
