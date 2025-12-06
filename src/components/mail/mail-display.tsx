@@ -41,7 +41,7 @@ interface MailDisplayProps {
 
 export function MailDisplay({ mail, onBack }: MailDisplayProps) {
   const isMobile = useIsMobile();
-  const { markAsRead, markAsUnread, moveToArchive, moveToSpam, moveToTrash, getEmailStatus } = useMail();
+  const { markAsRead, markAsUnread, moveToArchive, moveToSpam, moveToTrash, restoreFromTrash, getEmailStatus } = useMail();
 
   if (!mail) {
     return (
@@ -103,42 +103,59 @@ export function MailDisplay({ mail, onBack }: MailDisplayProps) {
         </Button>
         <div className="flex items-center gap-1 md:gap-2">
           <TooltipProvider delayDuration={0}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={handleMarkAsRead}>
-                  {emailStatus.read ? <MailOpen className="h-4 w-4" /> : <MailIcon className="h-4 w-4" />}
-                  <span className="sr-only">{emailStatus.read ? 'Mark as Unread' : 'Mark as Read'}</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{emailStatus.read ? 'Mark as Unread' : 'Mark as Read'}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={handleArchive}>
-                  <Archive className="h-4 w-4" />
-                  <span className="sr-only">Archive</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Archive</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={handleSpam}>
-                  <AlertCircle className="h-4 w-4" />
-                  <span className="sr-only">Mark as Spam</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Mark as Spam</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={handleDelete}>
-                  <Trash className="h-4 w-4" />
-                  <span className="sr-only">Delete</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Delete</TooltipContent>
-            </Tooltip>
+            {emailStatus.deleted ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={() => {
+                    restoreFromTrash(mail.id);
+                    if (onBack) onBack();
+                  }}>
+                    <Reply className="h-4 w-4" />
+                    <span className="sr-only">Restore</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Restore from Trash</TooltipContent>
+              </Tooltip>
+            ) : (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={handleMarkAsRead}>
+                      {emailStatus.read ? <MailOpen className="h-4 w-4" /> : <MailIcon className="h-4 w-4" />}
+                      <span className="sr-only">{emailStatus.read ? 'Mark as Unread' : 'Mark as Read'}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{emailStatus.read ? 'Mark as Unread' : 'Mark as Read'}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={handleArchive}>
+                      <Archive className="h-4 w-4" />
+                      <span className="sr-only">Archive</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Archive</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={handleSpam}>
+                      <AlertCircle className="h-4 w-4" />
+                      <span className="sr-only">Mark as Spam</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Mark as Spam</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={handleDelete}>
+                      <Trash className="h-4 w-4" />
+                      <span className="sr-only">Delete</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Delete</TooltipContent>
+                </Tooltip>
+              </>
+            )}
           </TooltipProvider>
         </div>
         <div className="ml-auto flex items-center gap-2">

@@ -16,26 +16,63 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { CryptoAttachment, type Asset } from './crypto-attachment';
 import { Checkbox } from '../ui/checkbox';
-import { Send, Loader2 } from 'lucide-react';
+import { Send, Loader2, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { mailService } from '@/lib/mail-service';
 import { CryptoAsset } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
+import { useMail } from '@/contexts/mail-context';
 
 export function ComposeDialog({
   children,
+  initialData
 }: {
   children: React.ReactNode;
+  initialData?: { to: string; subject: string; body: string; id?: string };
 }) {
   const [open, setOpen] = useState(false);
-  const [to, setTo] = useState('');
-  const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
+  const [to, setTo] = useState(initialData?.to || '');
+  const [subject, setSubject] = useState(initialData?.subject || '');
+  const [body, setBody] = useState(initialData?.body || '');
+
+  // Update state when initialData changes or dialog opens
+  useState(() => {
+    if (open && initialData) {
+      setTo(initialData.to);
+      setSubject(initialData.subject);
+      setBody(initialData.body);
+    }
+  });
   const [cryptoEnabled, setCryptoEnabled] = useState(false);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { saveDraft } = useMail();
+
+  // Load draft if initialData is provided (we'll need to add this prop later if we want to open specific drafts)
+  // For now, let's just add the save functionality.
+
+  const handleSaveDraft = () => {
+    if (!to && !subject && !body) {
+      return; // Don't save empty drafts
+    }
+
+    const draftId = `draft-${Date.now()}`;
+    saveDraft({
+      id: draftId,
+      to,
+      subject,
+      body,
+      timestamp: Date.now()
+    });
+
+    toast({
+      title: "Draft Saved",
+      description: "Your email has been saved to drafts.",
+    });
+    setOpen(false);
+  };
 
   const handleSend = async () => {
     if (!to || !subject || !body) {
@@ -183,21 +220,27 @@ export function ComposeDialog({
             <CryptoAttachment assets={assets} onChange={setAssets} />
           )}
         </div>
-        <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isLoading}>Cancel</Button>
-          <Button type="submit" onClick={handleSend} disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" />
-                Send {cryptoEnabled && assets.length > 0 && '+ Transfer Crypto'}
-              </>
-            )}
+        <DialogFooter className="sm:justify-between">
+          <Button type="button" variant="ghost" onClick={handleSaveDraft} disabled={isLoading}>
+            <Save className="mr-2 h-4 w-4" />
+            Save Draft
           </Button>
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isLoading}>Cancel</Button>
+            <Button type="submit" onClick={handleSend} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Send {cryptoEnabled && assets.length > 0 && '+ Transfer Crypto'}
+                </>
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

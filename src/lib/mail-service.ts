@@ -29,6 +29,17 @@ export interface EmailStatus {
   archived: boolean;
   deleted: boolean;
   draft: boolean;
+  labels: string[];
+  deletedAt?: number;
+  purged?: boolean;
+}
+
+export interface DraftEmail {
+  id: string;
+  to: string;
+  subject: string;
+  body: string;
+  timestamp: number;
 }
 
 const EMAIL_STATUS_KEY = 'dexmail_email_status';
@@ -646,7 +657,8 @@ class MailService {
       spam: false,
       archived: false,
       deleted: false,
-      draft: false
+      draft: false,
+      labels: []
     };
   }
 
@@ -682,7 +694,7 @@ class MailService {
   }
 
   moveToTrash(messageId: string): void {
-    this.updateEmailStatus(messageId, { deleted: true, spam: false, archived: false });
+    this.updateEmailStatus(messageId, { deleted: true, spam: false, archived: false, deletedAt: Date.now() });
   }
 
   restoreFromTrash(messageId: string): void {
@@ -692,11 +704,70 @@ class MailService {
   markAsDraft(messageId: string): void {
     this.updateEmailStatus(messageId, { draft: true });
   }
-
   removeDraftStatus(messageId: string): void {
     this.updateEmailStatus(messageId, { draft: false });
   }
 
+  addLabel(messageId: string, label: string): void {
+    const currentStatus = this.getEmailStatus(messageId);
+    const labels = currentStatus.labels || [];
+    if (!labels.includes(label)) {
+      this.updateEmailStatus(messageId, { labels: [...labels, label] });
+    }
+  }
+
+  cleanupTrash(): void {
+    const statusMap = this.getStatusMap();
+    const now = Date.now();
+    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+    let changed = false;
+
+    Object.keys(statusMap).forEach(id => {
+      const status = statusMap[id];
+      if (status.deleted && status.deletedAt && (now - status.deletedAt > THIRTY_DAYS_MS)) {
+        statusMap[id] = { ...status, purged: true };
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      this.saveStatusMap(statusMap);
+    }
+  }
+
+  // Drafts
+  private getDraftsMap(): Record<string, DraftEmail> {
+    if (typeof window === 'undefined') return {};
+    return JSON.parse(localStorage.getItem('dexmail_drafts') || '{}');
+  }
+
+  private saveDraftsMap(map: Record<string, DraftEmail>) {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('dexmail_drafts', JSON.stringify(map));
+  }
+
+  saveDraft(draft: DraftEmail): void {
+    const map = this.getDraftsMap();
+    map[draft.id] = draft;
+    this.saveDraftsMap(map);
+  }
+
+  getDrafts(): DraftEmail[] {
+    const map = this.getDraftsMap();
+    return Object.values(map).sort((a, b) => b.timestamp - a.timestamp);
+  }
+
+  deleteDraft(id: string): void {
+    const map = this.getDraftsMap();
+    delete map[id];
+    this.saveDraftsMap(map);
+  }
+
+  removeLabel(messageId: string, label: string): void {
+    const currentStatus = this.getEmailStatus(messageId);
+    const labels = currentStatus.labels || [];
+    this.updateEmailStatus(messageId, { labels: labels.filter(l => l !== label) });
+  }
 }
 
 export const mailService = new MailService();

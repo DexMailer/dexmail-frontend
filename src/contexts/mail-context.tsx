@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { mailService, EmailStatus } from '@/lib/mail-service';
+import { mailService, EmailStatus, DraftEmail } from '@/lib/mail-service';
 import { Mail } from '@/lib/data';
 import { useAccount } from 'wagmi';
 import { useAuth } from './auth-context';
@@ -16,6 +16,15 @@ interface MailContextType {
     moveToArchive: (messageId: string) => void;
     moveToTrash: (messageId: string) => void;
     restoreFromTrash: (messageId: string) => void;
+    addLabel: (messageId: string, label: string) => void;
+    removeLabel: (messageId: string, label: string) => void;
+    deleteMails: (messageIds: string[]) => void;
+    archiveMails: (messageIds: string[]) => void;
+    spamMails: (messageIds: string[]) => void;
+    addLabelToMails: (messageIds: string[], label: string) => void;
+    removeLabelFromMails: (messageIds: string[], label: string) => void;
+    saveDraft: (draft: DraftEmail) => void;
+    deleteDraft: (id: string) => void;
     isLoading: boolean;
 }
 
@@ -57,7 +66,8 @@ export function MailProvider({ children }: { children: ReactNode }) {
                     text: (m.body || '').substring(0, 100) + '...',
                     date: dateStr,
                     read: status.read,
-                    labels: [],
+
+                    labels: status.labels || [],
                     status: status.deleted ? 'trash' :
                         status.archived ? 'archive' :
                             status.spam ? 'spam' :
@@ -89,7 +99,25 @@ export function MailProvider({ children }: { children: ReactNode }) {
             });
 
             // Combine inbox and sent emails
-            setMails([...inboxMails, ...sentMails]);
+            let allMails = [...inboxMails, ...sentMails];
+
+            // Fetch drafts
+            const drafts = mailService.getDrafts();
+            const draftMails: Mail[] = drafts.map(d => ({
+                id: d.id,
+                name: '(Draft)',
+                email: d.to,
+                subject: d.subject || '(No Subject)',
+                text: (d.body || '').substring(0, 100) + '...',
+                date: new Date(d.timestamp).toISOString(),
+                read: true,
+                labels: [],
+                status: 'draft',
+                body: d.body,
+                hasCryptoTransfer: false // Drafts don't have crypto attached yet
+            }));
+
+            setMails([...allMails, ...draftMails]);
         } catch (error) {
             console.error('[MailContext] Failed to fetch mails:', error);
             if (!silent) setMails([]);
@@ -100,6 +128,7 @@ export function MailProvider({ children }: { children: ReactNode }) {
 
     // Effect for account/user changes and polling
     useEffect(() => {
+        mailService.cleanupTrash(); // Auto-delete old trash
         refreshMails(false); // Initial load with spinner
 
         // Poll for new emails every 10 seconds
@@ -156,6 +185,51 @@ export function MailProvider({ children }: { children: ReactNode }) {
         setStatusVersion(v => v + 1);
     };
 
+    const addLabel = (messageId: string, label: string) => {
+        mailService.addLabel(messageId, label);
+        setStatusVersion(v => v + 1);
+    };
+
+    const removeLabel = (messageId: string, label: string) => {
+        mailService.removeLabel(messageId, label);
+        setStatusVersion(v => v + 1);
+    };
+
+    const deleteMails = (messageIds: string[]) => {
+        messageIds.forEach(id => mailService.moveToTrash(id));
+        setStatusVersion(v => v + 1);
+    };
+
+    const archiveMails = (messageIds: string[]) => {
+        messageIds.forEach(id => mailService.moveToArchive(id));
+        setStatusVersion(v => v + 1);
+    };
+
+    const spamMails = (messageIds: string[]) => {
+        messageIds.forEach(id => mailService.moveToSpam(id));
+        setStatusVersion(v => v + 1);
+    };
+
+    const addLabelToMails = (messageIds: string[], label: string) => {
+        messageIds.forEach(id => mailService.addLabel(id, label));
+        setStatusVersion(v => v + 1);
+    };
+
+    const removeLabelFromMails = (messageIds: string[], label: string) => {
+        messageIds.forEach(id => mailService.removeLabel(id, label));
+        setStatusVersion(v => v + 1);
+    };
+
+    const saveDraft = (draft: DraftEmail) => {
+        mailService.saveDraft(draft);
+        setStatusVersion(v => v + 1);
+    };
+
+    const deleteDraft = (id: string) => {
+        mailService.deleteDraft(id);
+        setStatusVersion(v => v + 1);
+    };
+
     return (
         <MailContext.Provider
             value={{
@@ -170,6 +244,15 @@ export function MailProvider({ children }: { children: ReactNode }) {
                 moveToArchive,
                 moveToTrash,
                 restoreFromTrash,
+                addLabel,
+                removeLabel,
+                deleteMails,
+                archiveMails,
+                spamMails,
+                addLabelToMails,
+                removeLabelFromMails,
+                saveDraft,
+                deleteDraft,
                 isLoading
             }}
         >

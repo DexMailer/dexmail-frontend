@@ -37,48 +37,106 @@ import {
 } from '../ui/dropdown-menu';
 import Link from 'next/link';
 import { useMail } from '@/contexts/mail-context';
+import { Tag } from 'lucide-react';
+import { useMailLabels } from '@/hooks/use-mail-labels';
 
-function Header() {
+interface HeaderProps {
+  selectedMailIds: string[];
+  onDelete: () => void;
+  onArchive: () => void;
+  onSpam: () => void;
+  onAddLabel: (label: string) => void;
+  onRemoveLabel: (label: string) => void;
+}
+
+function Header({ selectedMailIds, onDelete, onArchive, onSpam, onAddLabel, onRemoveLabel }: HeaderProps) {
+  const labels = useMailLabels();
+  const [newLabel, setNewLabel] = useState('');
+
   return (
     <div className="flex items-center justify-between p-4 border-b">
       <div className="flex items-center gap-2">
-        <p className="text-sm text-muted-foreground">All Messages</p>
+        <p className="text-sm text-muted-foreground">
+          {selectedMailIds.length > 0 ? `${selectedMailIds.length} selected` : 'All Messages'}
+        </p>
       </div>
 
       <div className="flex items-center gap-4">
-        <TooltipProvider delayDuration={0}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Archive className="h-4 w-4" />
-                <span className="sr-only">Archive</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Archive</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Folder className="h-4 w-4" />
-                <span className="sr-only">Move to folder</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Move to folder</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Trash className="h-4 w-4" />
-                <span className="sr-only">Delete</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Delete</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <Button variant="ghost" size="icon">
-          <MoreVertical className="h-4 w-4" />
-          <span className="sr-only">More</span>
-        </Button>
+        {selectedMailIds.length > 0 ? (
+          <>
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={onArchive}>
+                    <Archive className="h-4 w-4" />
+                    <span className="sr-only">Archive</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Archive</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={onSpam}>
+                    <MoreVertical className="h-4 w-4" /> {/* Using MoreVertical as generic icon for now, or maybe AlertOctagon for spam */}
+                    <span className="sr-only">Mark as Spam</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Mark as Spam</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={onDelete}>
+                    <Trash className="h-4 w-4" />
+                    <span className="sr-only">Delete</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Delete</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Tag className="h-4 w-4" />
+                  <span className="sr-only">Labels</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Apply Label</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {labels.map((label) => (
+                  <DropdownMenuItem key={label.name} onClick={() => onAddLabel(label.name)}>
+                    <div className={`h-2 w-2 rounded-full mr-2 ${label.color}`} />
+                    {label.name}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <div className="p-2">
+                  <Input
+                    placeholder="New label..."
+                    value={newLabel}
+                    onChange={(e) => setNewLabel(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newLabel.trim()) {
+                        onAddLabel(newLabel.trim());
+                        setNewLabel('');
+                      }
+                    }}
+                    className="h-8"
+                  />
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        ) : (
+          <>
+            {/* Default actions when nothing selected */}
+            <Button variant="ghost" size="icon">
+              <MoreVertical className="h-4 w-4" />
+              <span className="sr-only">More</span>
+            </Button>
+          </>
+        )}
         <Separator orientation="vertical" className="h-6 mx-2" />
         <ComposeDialog>
           <Button>
@@ -155,12 +213,14 @@ import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 
 export function MailComponent({
   mails: initialMails,
-  category = 'all'
+  category = 'all',
+  label
 }: {
   mails: Mail[];
   category?: 'all' | 'read' | 'unread' | 'sent' | 'drafts' | 'spam' | 'archive' | 'trash';
+  label?: string;
 }) {
-  const { mails, isLoading } = useMail();
+  const { mails, isLoading, deleteMails, archiveMails, spamMails, addLabelToMails, removeLabelFromMails } = useMail();
   const [selectedMailId, setSelectedMailId] = React.useState<string | null>(null);
   const [selectedMailIds, setSelectedMailIds] = React.useState<string[]>([]);
   const [activeCategory, setActiveCategory] = React.useState(category);
@@ -180,9 +240,13 @@ export function MailComponent({
 
   const selectedMail = displayMails.find((item) => item.id === selectedMailId);
 
-  // Filter mails based on activeCategory
+  // Filter mails based on activeCategory or label
   const filteredMails = React.useMemo(() => {
     return displayMails.filter((mail) => {
+      if (label) {
+        return mail.labels && mail.labels.includes(decodeURIComponent(label));
+      }
+
       switch (activeCategory) {
         case 'all':
           return mail.status === 'inbox';
@@ -204,10 +268,20 @@ export function MailComponent({
           return true;
       }
     });
-  }, [displayMails, activeCategory]);
+  }, [displayMails, activeCategory, label]);
 
   const handleSelectMail = (mail: Mail) => {
-    setSelectedMailId(mail.id);
+    if (mail.status === 'draft') {
+      // Draft handling is a bit tricky because ComposeDialog is usually triggered by a button.
+      // We need a way to programmatically open it with data.
+      // For now, let's just set the selected mail ID so it "selects" it, but we render ComposeDialog instead of MailDisplay?
+      // Actually, we can just render a ComposeDialog that is open by default if we have a selected draft.
+      // But ComposeDialog is designed as a wrapper around a trigger.
+      // Let's modify the render logic below.
+      setSelectedMailId(mail.id);
+    } else {
+      setSelectedMailId(mail.id);
+    }
   };
 
   const handleToggleMailSelection = (mailId: string) => {
@@ -259,12 +333,72 @@ export function MailComponent({
 
   return (
     <div className="flex flex-col h-full w-full bg-background">
-      <Header />
+      <Header
+        selectedMailIds={selectedMailIds}
+        onDelete={() => {
+          deleteMails(selectedMailIds);
+          setSelectedMailIds([]);
+        }}
+        onArchive={() => {
+          archiveMails(selectedMailIds);
+          setSelectedMailIds([]);
+        }}
+        onSpam={() => {
+          spamMails(selectedMailIds);
+          setSelectedMailIds([]);
+        }}
+        onAddLabel={(label) => {
+          addLabelToMails(selectedMailIds, label);
+        }}
+        onRemoveLabel={(label) => {
+          removeLabelFromMails(selectedMailIds, label);
+        }}
+      />
       <div className="flex-1 w-full">
         {isLoading && !selectedMail ? (
           <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
         ) : selectedMail ? (
-          <MailDisplay mail={selectedMail} onBack={handleBack} />
+          selectedMail.status === 'draft' ? (
+            // We need to render the ComposeDialog here.
+            // Since ComposeDialog is a Dialog, we can't easily "embed" it in the view pane like MailDisplay.
+            // But we can make it open automatically.
+            // However, the requirement implies we should be able to "resume editing".
+            // Let's render MailList (so user stays on list) and pop up the dialog.
+            // To do this, we can use a controlled Dialog or just a key to force re-mount.
+            // Let's try to render a special "DraftEditor" component or just reuse ComposeDialog with an auto-open prop?
+            // The current ComposeDialog doesn't support "controlled open" from outside easily without refactoring.
+            // Let's refactor ComposeDialog to accept `open` prop or just use a key.
+            // Actually, let's just show the MailDisplay for now but add a "Resume Editing" button in it?
+            // No, standard behavior is opening the editor.
+            // Let's render the ComposeDialog *instead* of MailDisplay, but since it's a modal, it will pop up.
+            // And we should probably clear selection when it closes?
+            // Let's try this:
+            <ComposeDialog
+              key={selectedMail.id}
+              initialData={{
+                to: selectedMail.email,
+                subject: selectedMail.subject,
+                body: selectedMail.body,
+                id: selectedMail.id
+              }}
+            >
+              {/* We need a trigger, but we want it to open immediately.
+                   We can use a button that we click programmatically?
+                   Or better, update ComposeDialog to open if initialData is present?
+                   I added logic in ComposeDialog to set state from initialData, but not to auto-open.
+                   Let's just show a "Continue Editing" button in the view pane for simplicity and robustness.
+               */}
+              <div className="flex h-full flex-col items-center justify-center p-8 text-center">
+                <h2 className="text-2xl font-bold mb-4">Draft Message</h2>
+                <p className="text-muted-foreground mb-6">You are viewing a draft.</p>
+                <Button size="lg">
+                  <Edit className="mr-2 h-4 w-4" /> Continue Editing
+                </Button>
+              </div>
+            </ComposeDialog>
+          ) : (
+            <MailDisplay mail={selectedMail} onBack={handleBack} />
+          )
         ) : (
           <MailList
             items={filteredMails}
