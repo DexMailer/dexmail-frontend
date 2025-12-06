@@ -23,7 +23,7 @@ export const mails: Mail[] = [
     text: 'Dear Mrs Azie Melasari, I am Judha Maygustya, writing to ex...',
     date: '2023-10-22T10:00:00.000Z',
     read: false,
-    labels: ['work'],
+    labels: ['Client Inquiries'],
     status: 'inbox',
     body: `Dear Mrs. Azie Melasari,
 
@@ -44,7 +44,7 @@ Judha Maygustya`
     text: 'Welcome to Emura Daily News! Here are the latest updates and hi...',
     date: '2023-10-21T10:00:00.000Z',
     read: true,
-    labels: ['newsletter'],
+    labels: [],
     status: 'inbox',
     body: `Welcome to Emura Daily News!
 
@@ -65,7 +65,7 @@ The Emura Daily News Team`
     text: 'How are you, Hero? Looking for a healing pla...',
     date: '2023-10-20T10:00:00.000Z',
     read: true,
-    labels: ['promotions'],
+    labels: [],
     status: 'spam',
     body: `How are you, Hero?
 
@@ -86,7 +86,7 @@ The JAGO Team`
     text: "I hope you're doing well! I was thinking it might be a great time for a little getawa...",
     date: '2023-10-19T10:00:00.000Z',
     read: false,
-    labels: ['personal', 'starred'],
+    labels: [],
     status: 'inbox',
     body: `Hey,
 
@@ -107,7 +107,7 @@ Zidane Nurabidin`
     text: 'I hope your special day is filled with happiness, good health, and everything that bring...',
     date: '2023-10-18T10:00:00.000Z',
     read: true,
-    labels: ['personal'],
+    labels: [],
     status: 'sent',
     body: `Happy Birthday!
 
@@ -126,7 +126,7 @@ Robbi Darwis`
     text: "Showcase porto\" Hey everyone! I'm ex...",
     date: '2023-10-17T10:00:00.000Z',
     read: true,
-    labels: ['social'],
+    labels: [],
     status: 'trash',
     body: `"Showcase porto"
 
@@ -147,7 +147,7 @@ Your Name`
     text: "It's been a minute since we last caught up. Just wanted to check in and have a laid-...",
     date: '2023-10-16T10:00:00.000Z',
     read: true,
-    labels: ['personal'],
+    labels: [],
     status: 'inbox',
     body: `Hey,
 
@@ -168,7 +168,7 @@ M. Rafi Irfansyah`
     text: "Just thought I'd drop a message to catch up and chat a bit. It's been a while, and it wou...",
     date: '2023-10-15T10:00:00.000Z',
     read: true,
-    labels: ['personal'],
+    labels: [],
     status: 'inbox',
     body: `Hey,
 
@@ -189,7 +189,7 @@ Muzaki Gurfon`
     text: "I'm reaching out to inquire about some of the services and tools G...",
     date: '2023-10-14T10:00:00.000Z',
     read: true,
-    labels: ['work'],
+    labels: [],
     status: 'draft',
     body: `Dear Google Team,
 
@@ -210,7 +210,7 @@ A Curious User`
     text: "I'm currently looking to hire a talented and experienced Project Man...",
     date: '2023-10-13T10:00:00.000Z',
     read: true,
-    labels: ['work'],
+    labels: ['Client Inquiries'],
     status: 'inbox',
     body: `Hi,
 
@@ -231,7 +231,7 @@ Alfan Olivan`
     text: 'We detected suspicious activity that may ha...',
     date: '2023-10-12T10:00:00.000Z',
     read: true,
-    labels: ['security'],
+    labels: [],
     status: 'archive',
     body: `Security Alert: Action Required to Protect Your Account
 
@@ -252,7 +252,7 @@ The Google Security Team`
     text: 'I believe our combined skills could lead to somethin...',
     date: '2023-10-11T10:00:00.000Z',
     read: true,
-    labels: ['work'],
+    labels: [],
     status: 'sent',
     body: `Hey,
 
@@ -273,7 +273,7 @@ Faris Hadi Mulyo`
     text: 'Judha Maygustya, you received $430 USD Dear J...',
     date: '2023-10-10T10:00:00.000Z',
     read: true,
-    labels: ['finance'],
+    labels: ['Billing & Payments'],
     status: 'inbox',
     body: `Dear Judha Maygustya,
 
@@ -294,7 +294,7 @@ The PayPal Team`
     text: 'I wanted to inquire about the fee for a single design project with you. Could...',
     date: '2023-10-09T10:00:00.000Z',
     read: true,
-    labels: ['work'],
+    labels: [],
     status: 'draft',
     body: `Hi,
 
@@ -315,7 +315,7 @@ Ryan`
     text: "I'm reaching out to explore the possibility of a design collaboration betw...",
     date: '2023-10-08T10:00:00.000Z',
     read: true,
-    labels: ['work'],
+    labels: ['Project Updates'],
     status: 'inbox',
     body: `Hello,
 
@@ -336,7 +336,7 @@ Galang Andhika`
     text: 'Judha Maygustya, you received $230 USD Dear Judha M...',
     date: '2023-10-07T10:00:00.000Z',
     read: true,
-    labels: ['finance'],
+    labels: ['Billing & Payments'],
     status: 'inbox',
     body: `Dear Judha Maygustya,
 

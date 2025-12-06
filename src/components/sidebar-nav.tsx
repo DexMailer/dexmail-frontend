@@ -28,6 +28,7 @@ import { UserNav } from './user-nav';
 import { Input } from './ui/input';
 import { cn } from '@/lib/utils';
 import { useMailCounts } from '@/hooks/use-mail-counts';
+import { useMailLabels } from '@/hooks/use-mail-labels';
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -41,11 +42,7 @@ export function SidebarNav() {
     { name: 'Trash', href: '/dashboard/trash', icon: Trash2, count: counts.trash },
   ];
 
-  const labelLinks = [
-    { name: 'Billing & Payments', color: 'bg-brand-blue', count: 31 },
-    { name: 'Project Updates', color: 'bg-orange-500', count: 19 },
-    { name: 'Client Inquiries', color: 'bg-red-500', count: 22 },
-  ];
+  const labelLinks = useMailLabels();
 
   const bottomLinks = [
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
@@ -161,17 +158,23 @@ export function SidebarNav() {
         <SidebarMenu className="px-2">
           {labelLinks.map((link) => (
             <SidebarMenuItem key={link.name}>
-              <SidebarMenuButton tooltip={link.name}>
-                <div className={`h-2 w-2 rounded-full ${link.color}`} />
-                <span>{link.name}</span>
-                {link.count && (
-                  <Badge
-                    variant="secondary"
-                    className="ml-auto group-data-[collapsible=icon]:hidden"
-                  >
-                    {link.count}
-                  </Badge>
-                )}
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === `/dashboard/label/${encodeURIComponent(link.name)}`}
+                tooltip={link.name}
+              >
+                <Link href={`/dashboard/label/${encodeURIComponent(link.name)}`} className="w-full">
+                  <div className={`h-2 w-2 rounded-full ${link.color}`} />
+                  <span>{link.name}</span>
+                  {link.count > 0 && (
+                    <Badge
+                      variant="secondary"
+                      className="ml-auto group-data-[collapsible=icon]:hidden"
+                    >
+                      {link.count}
+                    </Badge>
+                  )}
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
