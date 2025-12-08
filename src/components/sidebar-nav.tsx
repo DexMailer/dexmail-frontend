@@ -22,6 +22,9 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarSeparator,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
 import { Badge } from './ui/badge';
 import { UserNav } from './user-nav';
@@ -70,7 +73,7 @@ export function SidebarNav() {
   return (
     <div className="flex h-full flex-col gap-2 px-2">
       <div className="p-2"></div>
-      <div className="p-2">
+      <div className="p-2 group-data-[collapsible=icon]/sidebar:hidden">
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search..." className="bg-background pl-8" />
@@ -79,36 +82,38 @@ export function SidebarNav() {
       <SidebarMenu className="px-2">
         <SidebarMenuItem>
           <SidebarMenuButton
-            isActive={pathname.startsWith('/dashboard')}
+            isActive={['/dashboard', '/dashboard/read', '/dashboard/unread'].includes(pathname)}
             tooltip="Inbox"
+            asChild
           >
-            <Inbox />
-            <span>Inbox</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <div className="ml-7 py-1 flex flex-col gap-1 border-l border-sidebar-border">
-          {subNavItems.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                'group flex items-center justify-between  px-3 py-1.5 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                pathname === item.href &&
-                'bg-sidebar-accent font-medium text-sidebar-accent-foreground border-l-2 border-primary'
-              )}
-            >
-              <span className="truncate">{item.name}</span>
-              {item.count && item.count > 0 ? (
-                <Badge
-                  variant="secondary"
-                  className="ml-auto group-data-[collapsible=icon]:hidden"
-                >
-                  {item.count}
-                </Badge>
-              ) : null}
+            <Link href="/dashboard">
+              <Inbox />
+              <span className="group-data-[collapsible=icon]/sidebar:hidden">Inbox</span>
             </Link>
-          ))}
-        </div>
+          </SidebarMenuButton>
+          <SidebarMenuSub>
+            {subNavItems.map((item) => (
+              <SidebarMenuSubItem key={item.name}>
+                <SidebarMenuSubButton
+                  asChild
+                  isActive={pathname === item.href}
+                >
+                  <Link href={item.href}>
+                    <span className="group-data-[collapsible=icon]/sidebar:hidden">{item.name}</span>
+                    {item.count && item.count > 0 ? (
+                      <Badge
+                        variant="secondary"
+                        className="ml-auto group-data-[collapsible=icon]/sidebar:hidden"
+                      >
+                        {item.count}
+                      </Badge>
+                    ) : null}
+                  </Link>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            ))}
+          </SidebarMenuSub>
+        </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton
             asChild
@@ -117,11 +122,11 @@ export function SidebarNav() {
           >
             <Link href="/dashboard/claim" className="w-full">
               <Gift />
-              <span>Claim</span>
-              {counts.claim > 0 && (
+              <span className="group-data-[collapsible=icon]/sidebar:hidden">Claim</span>
+              {(counts.claim || 0) > 0 && (
                 <Badge
                   variant="secondary"
-                  className="ml-auto group-data-[collapsible=icon]:hidden"
+                  className="ml-auto group-data-[collapsible=icon]/sidebar:hidden"
                 >
                   {counts.claim}
                 </Badge>
@@ -138,11 +143,11 @@ export function SidebarNav() {
             >
               <Link href={link.href} className="w-full">
                 <link.icon />
-                <span>{link.name}</span>
-                {link.count && link.count > 0 && (
+                <span className="group-data-[collapsible=icon]/sidebar:hidden">{link.name}</span>
+                {(link.count || 0) > 0 && (
                   <Badge
                     variant="secondary"
-                    className="ml-auto group-data-[collapsible=icon]:hidden"
+                    className="ml-auto group-data-[collapsible=icon]/sidebar:hidden"
                   >
                     {link.count}
                   </Badge>
@@ -153,7 +158,7 @@ export function SidebarNav() {
         ))}
       </SidebarMenu>
       <SidebarSeparator />
-      <SidebarGroup className="px-2">
+      <SidebarGroup className="px-2 group-data-[collapsible=icon]/sidebar:hidden">
         <SidebarGroupLabel>Labels</SidebarGroupLabel>
         <SidebarMenu className="px-2">
           {labelLinks.map((link) => (
@@ -165,11 +170,11 @@ export function SidebarNav() {
               >
                 <Link href={`/dashboard/label/${encodeURIComponent(link.name)}`} className="w-full">
                   <div className={`h-2 w-2 rounded-full ${link.color}`} />
-                  <span>{link.name}</span>
-                  {link.count > 0 && (
+                  <span className="group-data-[collapsible=icon]/sidebar:hidden">{link.name}</span>
+                  {(link.count || 0) > 0 && (
                     <Badge
                       variant="secondary"
-                      className="ml-auto group-data-[collapsible=icon]:hidden"
+                      className="ml-auto group-data-[collapsible=icon]/sidebar:hidden"
                     >
                       {link.count}
                     </Badge>
@@ -193,7 +198,7 @@ export function SidebarNav() {
               >
                 <Link href={link.href} className="w-full">
                   <link.icon />
-                  <span>{link.name}</span>
+                  <span className="group-data-[collapsible=icon]/sidebar:hidden">{link.name}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

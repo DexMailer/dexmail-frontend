@@ -39,13 +39,13 @@ export function UserNav() {
             <AvatarImage src={userAvatar?.imageUrl} alt="User Avatar" data-ai-hint={userAvatar?.imageHint} />
             <AvatarFallback>U</AvatarFallback>
           </Avatar>
-          <div className="hidden text-left group-data-[state=expanded]:inline-block">
+          <div className="text-left group-data-[collapsible=icon]/sidebar:hidden">
             <p className="text-sm font-medium leading-none">{slicedAddress}</p>
             <p className="text-xs leading-none text-muted-foreground">
               {displayEmail}
             </p>
           </div>
-          <ChevronsUpDown className="ml-auto hidden h-4 w-4 text-muted-foreground group-data-[state=expanded]:inline-block" />
+          <ChevronsUpDown className="ml-auto h-4 w-4 text-muted-foreground group-data-[collapsible=icon]/sidebar:hidden" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
