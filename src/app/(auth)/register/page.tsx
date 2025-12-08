@@ -374,14 +374,22 @@ export default function RegisterPage() {
                       placeholder="Enter your email or edit the generated one"
                       className="h-12 bg-white border-slate-200 rounded-xl focus:border-slate-400 focus:ring-slate-400 text-slate-900 placeholder:text-slate-500"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEmail(val);
+                        if (val.includes('@') || val.includes('.')) {
+                          setError("Please enter only your username (without '@' or domain extensions)");
+                        } else {
+                          setError('');
+                        }
+                      }}
                       required
                     />
                   </div>
 
                   <Button
                     onClick={handleWalletRegistration}
-                    disabled={isSigning || isAuthenticating || !email.trim()}
+                    disabled={isSigning || isAuthenticating || !email.trim() || !!error}
                     className="w-full h-12 bg-brand-blue hover:bg-brand-blue-hover text-white font-semibold rounded-full"
                   >
                     {isSigning ? (
