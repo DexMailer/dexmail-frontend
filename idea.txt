@@ -1,0 +1,1919 @@
+# BaseMailer v2.0 - Complete Product Requirements Document
+
+**Revolutionary Email Protocol:** Decentralized mail with crypto transfer capabilities and traditional email compatibility
+
+---
+
+## Executive Summary
+
+BaseMailer v2.0 is a **hybrid blockchain-based email protocol** that combines:
+
+✅ **Full Gmail/Outlook compatibility** - Use any email client  
+✅ **Send to/from traditional emails** - alice.base.eth@basemailer.com ↔ user@gmail.com  
+✅ **Decentralized storage** - Messages stored on IPFS, indexed on Base  
+✅ **Dual authentication** - Wallet signatures OR traditional email/password  
+✅ **Crypto-as-Email** - Send ERC20 tokens, NFTs, and crypto assets to ANY email address  
+✅ **One-click onboarding** - Non-custodial wallet creation via email claim links  
+✅ **Censorship-resistant** - No single point of failure  
+
+---
+
+## Core Features Overview
+
+### 1. Dual Authentication System
+- **Traditional Login**: Email + Password (for mainstream adoption)
+- **Web3 Login**: Wallet signature authentication (for crypto users)
+- Seamless switching between authentication methods
+
+### 2. Standard Email Functionality
+- SMTP/IMAP protocol support
+- Compatible with all email clients
+- Bidirectional email flow (BaseMailer ↔ Traditional email)
+- Decentralized message storage (IPFS)
+
+### 3. Crypto Transfer via Email (NEW)
+- Send crypto to ANY email address (Gmail, Outlook, Yahoo, etc.)
+- Recipient doesn't need existing wallet
+- Automatic smart contract wallet generation
+- One-click claim process
+- Supported assets:
+  - ETH and Base network native tokens
+  - ERC20 tokens (USDC, USDT, DAI, etc.)
+  - ERC721 NFTs
+  - ERC1155 tokens
+
+---
+
+## System Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                       EMAIL CLIENTS                              │
+│  Gmail App | Outlook | Apple Mail | Thunderbird | Web Client    │
+└────────────────────┬─────────────────────────────────────────────┘
+                     │ Standard SMTP/IMAP/POP3
+                     ▼
+┌──────────────────────────────────────────────────────────────────┐
+│              BLOCKCHAIN SMTP/IMAP GATEWAY                        │
+│                                                                  │
+│  ┌──────────────────┐         ┌──────────────────┐             │
+│  │   SMTP Server    │         │   IMAP Server    │             │
+│  │  (Sending Mail)  │         │ (Reading Mail)   │             │
+│  └────────┬─────────┘         └────────┬─────────┘             │
+│           │                             │                        │
+│           │      ┌──────────────────────┘                       │
+│           │      │                                               │
+│           ▼      ▼                                               │
+│  ┌────────────────────────────┐                                │
+│  │   Authentication Layer     │                                │
+│  │  - Wallet Signatures       │                                │
+│  │  - Email/Password          │                                │
+│  └────────────┬───────────────┘                                │
+│               │                                                │
+│               ├─────────────────┐                              │
+│               ▼                 ▼                              │
+│  ┌──────────────────┐  ┌──────────────────┐                   │
+│  │  Crypto Transfer │  │  Email Processor │                   │
+│  │     Engine       │  │                  │                   │
+│  └────────┬─────────┘  └────────┬─────────┘                   │
+└───────────┼────────────────────┼─────────────────────────────┘
+            │                    │
+            ▼                    ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    BLOCKCHAIN LAYER                              │
+│                                                                  │
+│  ┌──────────────────┐         ┌──────────────────┐             │
+│  │  Base Blockchain │         │  IPFS Storage    │             │
+│  │  - Mail index    │◄────────►│  - Encrypted     │             │
+│  │  - Auth records  │         │    content       │             │
+│  │  - Email registry│         │  - Attachments   │             │
+│  │  - AA Wallets    │         └──────────────────┘             │
+│  │  - Claim registry│                                           │
+│  └──────────────────┘                                           │
+│                                                                  │
+│  ┌──────────────────────────────────────────────┐              │
+│  │     Smart Contract Wallet Factory (AA)       │              │
+│  │  - Deterministic wallet generation           │              │
+│  │  - Email-to-address mapping                  │              │
+│  │  - Gas sponsorship                           │              │
+│  │  - Claim mechanism                           │              │
+│  └──────────────────────────────────────────────┘              │
+└──────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+┌──────────────────────────────────────────────────────────────────┐
+│              TRADITIONAL EMAIL BRIDGE                            │
+│                                                                  │
+│  ┌──────────────────┐         ┌──────────────────┐             │
+│  │   Gmail SMTP     │         │  Outlook SMTP    │             │
+│  │   (Outbound)     │         │  (Outbound)      │             │
+│  └──────────────────┘         └──────────────────┘             │
+│                                                                  │
+│  Forward to: user@gmail.com, user@outlook.com                   │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Feature 1: Dual Authentication System
+
+### Traditional Email/Password Authentication
+
+**User Flow:**
+1. User signs up with email and password
+2. System creates account in traditional database
+3. User can access via SMTP/IMAP with email:password credentials
+4. Optional: Link wallet later for Web3 features
+
+**Implementation:**
+
+```javascript
+// Authentication Handler
+class DualAuthSystem {
+  constructor() {
+    this.db = new Database();
+    this.blockchain = new BlockchainClient();
+  }
+  
+  // Traditional authentication
+  async authenticateTraditional(email, password) {
+    const user = await this.db.users.findOne({ email });
+    
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    const isValid = await bcrypt.compare(password, user.passwordHash);
+    
+    if (!isValid) {
+      throw new Error('Invalid password');
+    }
+    
+    return {
+      type: 'traditional',
+      email: user.email,
+      walletLinked: !!user.walletAddress,
+      sessionToken: this.generateSessionToken(user)
+    };
+  }
+  
+  // Wallet authentication
+  async authenticateWallet(email, signature) {
+    const challenge = await this.getChallenge(email);
+    const recoveredAddress = ethers.utils.verifyMessage(
+      challenge.nonce,
+      signature
+    );
+    
+    // Check if email is linked to this wallet
+    const user = await this.db.users.findOne({ 
+      walletAddress: recoveredAddress.toLowerCase() 
+    });
+    
+    if (!user) {
+      throw new Error('Wallet not linked to any account');
+    }
+    
+    return {
+      type: 'wallet',
+      email: user.email,
+      walletAddress: recoveredAddress,
+      sessionToken: this.generateSessionToken(user)
+    };
+  }
+  
+  // Link wallet to existing email account
+  async linkWallet(email, walletAddress, signature) {
+    const user = await this.db.users.findOne({ email });
+    
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    // Verify wallet signature
+    const message = `Link wallet ${walletAddress} to ${email}`;
+    const recoveredAddress = ethers.utils.verifyMessage(message, signature);
+    
+    if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+      throw new Error('Invalid signature');
+    }
+    
+    // Update user record
+    await this.db.users.updateOne(
+      { email },
+      { $set: { walletAddress: walletAddress.toLowerCase() } }
+    );
+    
+    return { success: true };
+  }
+}
+```
+
+### SMTP/IMAP Server Authentication
+
+```javascript
+class BaseMailerSMTP {
+  // ... (previous code)
+  
+  onAuth: async (auth, session, callback) => {
+    try {
+      let authResult;
+      
+      // Detect authentication type
+      if (this.isWalletSignature(auth.password)) {
+        // Wallet-based authentication
+        authResult = await this.authSystem.authenticateWallet(
+          auth.username,
+          auth.password
+        );
+      } else {
+        // Traditional authentication
+        authResult = await this.authSystem.authenticateTraditional(
+          auth.username,
+          auth.password
+        );
+      }
+      
+      if (authResult) {
+        session.user = { 
+          email: authResult.email,
+          authType: authResult.type,
+          walletAddress: authResult.walletAddress
+        };
+        callback(null, { user: authResult.email });
+      } else {
+        callback(new Error('Authentication failed'));
+      }
+    } catch (error) {
+      callback(error);
+    }
+  }
+  
+  isWalletSignature(password) {
+    // Check if password looks like a signature (0x...)
+    return /^0x[a-fA-F0-9]{130}$/.test(password);
+  }
+}
+```
+
+---
+
+## Feature 2: Crypto Transfer via Email
+
+### Overview
+
+Send crypto assets to ANY email address, even if recipient has no wallet.
+
+**Key Features:**
+- Deterministic smart contract wallet generation
+- Non-custodial (funds never held by platform)
+- Gas-sponsored claim process
+- One-click recipient onboarding
+- Secure email verification
+
+### User Flow - Sender
+
+```
+1. User composes email in any client
+2. Adds special marker: [SEND: 100 USDC]
+3. System detects crypto transfer request
+4. Generates deterministic wallet address for recipient email
+5. Sender approves transaction to send funds to recipient's wallet
+6. Funds deposited directly to recipient's smart contract wallet
+7. Email sent with claim link
+```
+
+### User Flow - Recipient
+
+```
+1. Receives email: "You've received 100 USDC!"
+2. Clicks claim link
+3. Verifies email ownership (one-time code)
+4. System deploys smart contract wallet (gas-sponsored)
+5. Recipient gains access to funds
+6. Can create password or link existing wallet
+```
+
+### Crypto Email Syntax
+
+**In Email Body:**
+
+```
+Hey John,
+
+Thanks for the awesome work! Here's your payment.
+
+[SEND: 100 USDC]
+
+Or you can use:
+[SEND: 0.1 ETH]
+[SEND: 1 NFT_CONTRACT_ADDRESS:TOKEN_ID]
+
+Best,
+Alice
+```
+
+**Via Web Client (Enhanced UI):**
+
+```html
+<div class="crypto-attachment">
+  <select>
+    <option>USDC</option>
+    <option>USDT</option>
+    <option>ETH</option>
+    <option>DAI</option>
+  </select>
+  <input type="number" placeholder="Amount" />
+  <button>Attach Crypto</button>
+</div>
+```
+
+### Smart Contract Architecture
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@account-abstraction/contracts/core/BaseAccount.sol";
+import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
+
+/**
+ * @title EmailWalletFactory
+ * @notice Creates deterministic smart contract wallets for email addresses
+ */
+contract EmailWalletFactory {
+    IEntryPoint public immutable entryPoint;
+    
+    mapping(bytes32 => address) public emailToWallet;
+    mapping(address => bool) public isDeployed;
+    mapping(bytes32 => PendingClaim) public pendingClaims;
+    
+    struct PendingClaim {
+        address token;
+        uint256 amount;
+        address sender;
+        uint256 timestamp;
+        bool claimed;
+    }
+    
+    event WalletCreated(bytes32 indexed emailHash, address walletAddress);
+    event CryptoSent(bytes32 indexed emailHash, address token, uint256 amount, address sender);
+    event ClaimProcessed(bytes32 indexed emailHash, address recipient);
+    
+    constructor(IEntryPoint _entryPoint) {
+        entryPoint = _entryPoint;
+    }
+    
+    /**
+     * @notice Get deterministic wallet address for email
+     * @param emailHash Keccak256 hash of email address
+     */
+    function getWalletAddress(bytes32 emailHash) public view returns (address) {
+        return emailToWallet[emailHash];
+    }
+    
+    /**
+     * @notice Compute deterministic address before deployment
+     */
+    function computeAddress(bytes32 emailHash) public view returns (address) {
+        bytes32 salt = emailHash;
+        bytes memory bytecode = abi.encodePacked(
+            type(EmailWallet).creationCode,
+            abi.encode(entryPoint, address(this))
+        );
+        
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                bytes1(0xff),
+                address(this),
+                salt,
+                keccak256(bytecode)
+            )
+        );
+        
+        return address(uint160(uint256(hash)));
+    }
+    
+    /**
+     * @notice Send crypto to an email address
+     * @param emailHash Keccak256 hash of recipient email
+     * @param token ERC20 token address (address(0) for ETH)
+     * @param amount Amount to send
+     */
+    function sendToEmail(
+        bytes32 emailHash,
+        address token,
+        uint256 amount
+    ) external payable {
+        require(amount > 0, "Amount must be > 0");
+        
+        address walletAddress = computeAddress(emailHash);
+        
+        // Transfer funds directly to deterministic wallet address
+        if (token == address(0)) {
+            // ETH transfer
+            require(msg.value == amount, "Incorrect ETH amount");
+            (bool success, ) = walletAddress.call{value: amount}("");
+            require(success, "ETH transfer failed");
+        } else {
+            // ERC20 transfer
+            IERC20(token).transferFrom(msg.sender, walletAddress, amount);
+        }
+        
+        // Record pending claim
+        pendingClaims[emailHash] = PendingClaim({
+            token: token,
+            amount: amount,
+            sender: msg.sender,
+            timestamp: block.timestamp,
+            claimed: false
+        });
+        
+        emit CryptoSent(emailHash, token, amount, msg.sender);
+    }
+    
+    /**
+     * @notice Send NFT to email address
+     */
+    function sendNFTToEmail(
+        bytes32 emailHash,
+        address nftContract,
+        uint256 tokenId
+    ) external {
+        address walletAddress = computeAddress(emailHash);
+        
+        // Transfer NFT directly to deterministic wallet
+        IERC721(nftContract).transferFrom(msg.sender, walletAddress, tokenId);
+        
+        emit CryptoSent(emailHash, nftContract, tokenId, msg.sender);
+    }
+    
+    /**
+     * @notice Deploy wallet and transfer ownership to claimant
+     * @param email Plaintext email (verified off-chain)
+     * @param owner Address that will control the wallet
+     * @param verificationProof Off-chain signature proving email ownership
+     */
+    function claimWallet(
+        string calldata email,
+        address owner,
+        bytes calldata verificationProof
+    ) external {
+        bytes32 emailHash = keccak256(abi.encodePacked(email));
+        
+        require(!isDeployed[emailToWallet[emailHash]], "Already claimed");
+        require(
+            verifyEmailOwnership(email, owner, verificationProof),
+            "Invalid email verification"
+        );
+        
+        // Deploy wallet using CREATE2
+        address walletAddress = computeAddress(emailHash);
+        EmailWallet wallet = new EmailWallet{salt: emailHash}(
+            entryPoint,
+            address(this)
+        );
+        
+        require(address(wallet) == walletAddress, "Address mismatch");
+        
+        // Initialize wallet with owner
+        wallet.initialize(owner);
+        
+        emailToWallet[emailHash] = walletAddress;
+        isDeployed[walletAddress] = true;
+        pendingClaims[emailHash].claimed = true;
+        
+        emit WalletCreated(emailHash, walletAddress);
+        emit ClaimProcessed(emailHash, owner);
+    }
+    
+    /**
+     * @notice Verify email ownership (called by relayer with off-chain proof)
+     */
+    function verifyEmailOwnership(
+        string calldata email,
+        address claimant,
+        bytes calldata proof
+    ) internal view returns (bool) {
+        // Verify signature from trusted relayer that confirmed email ownership
+        bytes32 messageHash = keccak256(abi.encodePacked(email, claimant));
+        address signer = recoverSigner(messageHash, proof);
+        
+        // Check if signer is authorized relayer
+        return signer == trustedRelayer;
+    }
+    
+    function recoverSigner(bytes32 messageHash, bytes memory signature)
+        internal
+        pure
+        returns (address)
+    {
+        bytes32 ethSignedMessageHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash)
+        );
+        
+        (bytes32 r, bytes32 s, uint8 v) = splitSignature(signature);
+        return ecrecover(ethSignedMessageHash, v, r, s);
+    }
+    
+    address public trustedRelayer; // Set in constructor or governance
+}
+
+/**
+ * @title EmailWallet
+ * @notice Smart contract wallet for email-based accounts
+ */
+contract EmailWallet is BaseAccount {
+    IEntryPoint private immutable _entryPoint;
+    address public factory;
+    address public owner;
+    
+    event WalletInitialized(address indexed owner);
+    event OwnerChanged(address indexed newOwner);
+    
+    constructor(IEntryPoint entryPointAddress, address _factory) {
+        _entryPoint = entryPointAddress;
+        factory = _factory;
+    }
+    
+    function initialize(address _owner) external {
+        require(msg.sender == factory, "Only factory");
+        require(owner == address(0), "Already initialized");
+        owner = _owner;
+        emit WalletInitialized(_owner);
+    }
+    
+    function entryPoint() public view override returns (IEntryPoint) {
+        return _entryPoint;
+    }
+    
+    function _validateSignature(
+        UserOperation calldata userOp,
+        bytes32 userOpHash
+    ) internal view override returns (uint256) {
+        bytes32 hash = userOpHash.toEthSignedMessageHash();
+        if (owner != hash.recover(userOp.signature)) {
+            return SIG_VALIDATION_FAILED;
+        }
+        return 0;
+    }
+    
+    // Allow wallet to receive ETH
+    receive() external payable {}
+    
+    // Execute arbitrary calls
+    function execute(
+        address dest,
+        uint256 value,
+        bytes calldata func
+    ) external {
+        require(msg.sender == owner || msg.sender == address(entryPoint()), "Not authorized");
+        (bool success, ) = dest.call{value: value}(func);
+        require(success, "Execution failed");
+    }
+}
+```
+
+### Backend Implementation
+
+```javascript
+class CryptoEmailProcessor {
+  constructor(config) {
+    this.factory = new ethers.Contract(
+      config.factoryAddress,
+      EmailWalletFactoryABI,
+      config.signer
+    );
+    this.mailer = new Mailer(config.smtp);
+    this.db = new Database();
+  }
+  
+  /**
+   * Parse email content for crypto transfer markers
+   */
+  async parseEmail(email) {
+    const cryptoPatterns = [
+      /\[SEND:\s*(\d+\.?\d*)\s+(ETH|USDC|USDT|DAI)\]/gi,
+      /\[SEND:\s*(\d+)\s+NFT\s+(0x[a-fA-F0-9]{40}):(\d+)\]/gi
+    ];
+    
+    const transfers = [];
+    
+    for (const pattern of cryptoPatterns) {
+      const matches = [...email.body.matchAll(pattern)];
+      
+      for (const match of matches) {
+        if (match[2] === 'NFT') {
+          transfers.push({
+            type: 'nft',
+            contract: match[2],
+            tokenId: match[3]
+          });
+        } else {
+          transfers.push({
+            type: 'token',
+            amount: match[1],
+            symbol: match[2]
+          });
+        }
+      }
+    }
+    
+    return transfers;
+  }
+  
+  /**
+   * Process crypto transfer in email
+   */
+  async processCryptoEmail(email, sender, recipient) {
+    const transfers = await this.parseEmail(email);
+    
+    if (transfers.length === 0) {
+      return null;
+    }
+    
+    // Generate email hash
+    const emailHash = ethers.utils.keccak256(
+      ethers.utils.toUtf8Bytes(recipient.toLowerCase())
+    );
+    
+    // Get deterministic wallet address
+    const walletAddress = await this.factory.computeAddress(emailHash);
+    
+    // Process each transfer
+    for (const transfer of transfers) {
+      if (transfer.type === 'token') {
+        await this.processTokenTransfer(
+          sender,
+          recipient,
+          emailHash,
+          transfer
+        );
+      } else if (transfer.type === 'nft') {
+        await this.processNFTTransfer(
+          sender,
+          recipient,
+          emailHash,
+          transfer
+        );
+      }
+    }
+    
+    // Send claim email
+    await this.sendClaimEmail(recipient, walletAddress, transfers);
+    
+    return {
+      walletAddress,
+      transfers,
+      claimLink: `https://basemailer.com/claim/${emailHash}`
+    };
+  }
+  
+  /**
+   * Process ERC20 token transfer
+   */
+  async processTokenTransfer(sender, recipient, emailHash, transfer) {
+    const tokenAddress = this.getTokenAddress(transfer.symbol);
+    const amount = ethers.utils.parseUnits(transfer.amount, 18);
+    
+    // Store pending transfer in database
+    await this.db.pendingTransfers.insertOne({
+      emailHash,
+      sender,
+      recipient,
+      tokenAddress,
+      amount: transfer.amount,
+      symbol: transfer.symbol,
+      timestamp: Date.now(),
+      claimed: false
+    });
+    
+    console.log(`✓ Crypto transfer queued: ${transfer.amount} ${transfer.symbol} → ${recipient}`);
+  }
+  
+  /**
+   * Send claim email to recipient
+   */
+  async sendClaimEmail(recipientEmail, walletAddress, transfers) {
+    const claimToken = crypto.randomBytes(32).toString('hex');
+    
+    // Store claim token
+    await this.db.claimTokens.insertOne({
+      email: recipientEmail,
+      token: claimToken,
+      walletAddress,
+      expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+      used: false
+    });
+    
+    const claimLink = `https://basemailer.com/claim?token=${claimToken}`;
+    
+    // Compose claim email
+    const emailBody = this.generateClaimEmail(transfers, claimLink);
+    
+    await this.mailer.send({
+      to: recipientEmail,
+      subject: '💰 You received crypto via BaseMailer!',
+      html: emailBody
+    });
+    
+    console.log(`✓ Claim email sent to ${recipientEmail}`);
+  }
+  
+  generateClaimEmail(transfers, claimLink) {
+    const transferList = transfers.map(t => {
+      if (t.type === 'token') {
+        return `<li><strong>${t.amount} ${t.symbol}</strong></li>`;
+      } else {
+        return `<li><strong>NFT</strong> (Contract: ${t.contract}, ID: ${t.tokenId})</li>`;
+      }
+    }).join('');
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    color: white; padding: 30px; text-align: center; border-radius: 10px; }
+          .content { background: #f9f9f9; padding: 30px; margin-top: 20px; border-radius: 10px; }
+          .transfers { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; }
+          .cta-button { display: inline-block; background: #667eea; color: white; 
+                        padding: 15px 40px; text-decoration: none; border-radius: 5px; 
+                        font-weight: bold; margin: 20px 0; }
+          .cta-button:hover { background: #5568d3; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>💰 You've Received Crypto!</h1>
+          </div>
+          <div class="content">
+            <p>Someone sent you crypto assets via BaseMailer:</p>
+            <div class="transfers">
+              <ul>${transferList}</ul>
+            </div>
+            <p>Click the button below to claim your assets. This will create a secure, 
+               non-custodial wallet for you in one click:</p>
+            <center>
+              <a href="${claimLink}" class="cta-button">Claim My Crypto</a>
+            </center>
+            <p><small>This link expires in 7 days. Your funds are already secured in your 
+               own smart contract wallet.</small></p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+}
+```
+
+### Claim Process (Web Interface)
+
+```javascript
+// Frontend: Claim page
+class ClaimPage {
+  async processClaim(claimToken) {
+    // 1. Verify claim token
+    const claimData = await fetch(`/api/claim/verify`, {
+      method: 'POST',
+      body: JSON.stringify({ token: claimToken })
+    }).then(r => r.json());
+    
+    if (!claimData.valid) {
+      throw new Error('Invalid or expired claim link');
+    }
+    
+    // 2. Send verification code to email
+    await this.sendVerificationCode(claimData.email);
+    
+    // 3. User enters verification code
+    const code = await this.promptVerificationCode();
+    
+    // 4. Verify code
+    const verified = await this.verifyCode(claimData.email, code);
+    
+    if (!verified) {
+      throw new Error('Invalid verification code');
+    }
+    
+    // 5. User chooses authentication method
+    const authChoice = await this.promptAuthChoice();
+    
+    let ownerAddress;
+    
+    if (authChoice === 'create-password') {
+      // Traditional authentication
+      const password = await this.promptPasswordCreation();
+      ownerAddress = await this.createPasswordBasedWallet(
+        claimData.email,
+        password
+      );
+    } else if (authChoice === 'connect-wallet') {
+      // Connect existing wallet
+      ownerAddress = await this.connectWallet();
+    }
+    
+    // 6. Deploy smart contract wallet (gas-sponsored)
+    await this.deployWallet(claimData, ownerAddress);
+    
+    // 7. Show success + wallet details
+    this.showSuccess(claimData, ownerAddress);
+  }
+  
+  async deployWallet(claimData, ownerAddress) {
+    // Backend handles gas sponsorship via relayer
+    const result = await fetch('/api/claim/deploy', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: claimData.email,
+        ownerAddress,
+        claimToken: claimData.token
+      })
+    }).then(r => r.json());
+    
+    return result;
+  }
+}
+```
+
+### Gas Sponsorship (Backend Relayer)
+
+```javascript
+class GasSponsorRelayer {
+  constructor(config) {
+    this.wallet = new ethers.Wallet(config.privateKey, config.provider);
+    this.factory = new ethers.Contract(
+      config.factoryAddress,
+      EmailWalletFactoryABI,
+      this.wallet
+    );
+  }
+  
+  /**
+   * Deploy wallet and sponsor gas
+   */
+  async deployWallet(email, ownerAddress) {
+    const emailHash = ethers.utils.keccak256(
+      ethers.utils.toUtf8Bytes(email.toLowerCase())
+    );
+    
+    // Generate verification proof (signed by relayer)
+    const messageHash = ethers.utils.solidityKeccak256(
+      ['string', 'address'],
+      [email, ownerAddress]
+    );
+    
+    const verificationProof = await this.wallet.signMessage(
+      ethers.utils.arrayify(messageHash)
+    );
+    
+    // Deploy wallet (relayer pays gas)
+    const tx = await this.factory.claimWallet(
+      email,
+      ownerAddress,
+      verificationProof,
+      {
+        gasLimit: 500000
+      }
+    );
+    
+    const receipt = await tx.wait();
+    
+    console.log(`✓ Wallet deployed for ${email} at tx ${receipt.transactionHash}`);
+    
+    return {
+      walletAddress: await this.factory.computeAddress(emailHash),
+      transactionHash: receipt.transactionHash
+    };
+  }
+}
+```
+
+---
+
+## Updated Smart Contract (Complete)
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract BaseMailer {
+    struct Mail {
+        bytes32 cid;              // IPFS CID
+        address sender;           // Sender's wallet
+        string recipientEmail;    // Recipient email
+        uint256 timestamp;
+        bool isExternal;          // true if sent to external email
+        bool hasCrypto;           // true if contains crypto transfer
+    }
+    
+    struct CryptoTransfer {
+        address token;            // ERC20 token address (address(0) for ETH)
+        uint256 amount;           // Amount or token ID for NFTs
+        bool isNFT;               // true if NFT transfer
+        address sender;
+        string recipientEmail;
+        uint256 timestamp;
+        bool claimed;
+    }
+    
+    // Email registration
+    mapping(string => address) public emailOwner;
+    mapping(address => string) public addressToEmail;
+    
+    // Mail inbox
+    mapping(string => uint256[]) public inbox;
+    Mail[] public mails;
+    
+    // Crypto transfers
+    mapping(bytes32 => address) public emailToWallet; // Email hash → wallet address
+    mapping(bytes32 => CryptoTransfer[]) public pendingTransfers; // Email
+    ```solidity
+    // Crypto transfers (continued)
+    mapping(bytes32 => CryptoTransfer[]) public pendingTransfers; // Email hash → transfers
+    mapping(address => bool) public isWalletDeployed;
+    
+    // Gas sponsorship
+    mapping(address => bool) public authorizedRelayers;
+    address public owner;
+    
+    event EmailRegistered(string email, address owner);
+    event MailSent(uint256 mailId, address sender, string recipient, bytes32 cid);
+    event CryptoSent(bytes32 indexed emailHash, address token, uint256 amount, address sender);
+    event WalletClaimed(bytes32 indexed emailHash, address walletAddress, address claimant);
+    event RelayerAuthorized(address relayer, bool authorized);
+    
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
+        _;
+    }
+    
+    modifier onlyRelayer() {
+        require(authorizedRelayers[msg.sender], "Not authorized relayer");
+        _;
+    }
+    
+    constructor() {
+        owner = msg.sender;
+        authorizedRelayers[msg.sender] = true;
+    }
+    
+    // ============ EMAIL REGISTRATION ============
+    
+    function registerEmail(string calldata email) external {
+        require(emailOwner[email] == address(0), "Email taken");
+        emailOwner[email] = msg.sender;
+        addressToEmail[msg.sender] = email;
+        emit EmailRegistered(email, msg.sender);
+    }
+    
+    function registerEmailWithPassword(
+        string calldata email,
+        address userAddress
+    ) external onlyRelayer {
+        require(emailOwner[email] == address(0), "Email taken");
+        emailOwner[email] = userAddress;
+        addressToEmail[userAddress] = email;
+        emit EmailRegistered(email, userAddress);
+    }
+    
+    // ============ MAIL INDEXING ============
+    
+    function indexMail(
+        bytes32 cid,
+        string calldata recipientEmail,
+        bool isExternal,
+        bool hasCrypto
+    ) external {
+        uint256 mailId = mails.length;
+        
+        mails.push(Mail({
+            cid: cid,
+            sender: msg.sender,
+            recipientEmail: recipientEmail,
+            timestamp: block.timestamp,
+            isExternal: isExternal,
+            hasCrypto: hasCrypto
+        }));
+        
+        inbox[recipientEmail].push(mailId);
+        
+        emit MailSent(mailId, msg.sender, recipientEmail, cid);
+    }
+    
+    function getInbox(string calldata email) external view returns (uint256[] memory) {
+        return inbox[email];
+    }
+    
+    function getMail(uint256 mailId) external view returns (Mail memory) {
+        require(mailId < mails.length, "Invalid mail ID");
+        return mails[mailId];
+    }
+    
+    // ============ CRYPTO TRANSFERS ============
+    
+    function computeWalletAddress(string calldata email) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(email));
+    }
+    
+    function sendCryptoToEmail(
+        string calldata recipientEmail,
+        address token,
+        uint256 amount,
+        bool isNFT
+    ) external payable {
+        require(amount > 0, "Amount must be > 0");
+        
+        bytes32 emailHash = computeWalletAddress(recipientEmail);
+        
+        // Create deterministic wallet address if not exists
+        if (emailToWallet[emailHash] == address(0)) {
+            address walletAddress = address(uint160(uint256(emailHash)));
+            emailToWallet[emailHash] = walletAddress;
+        }
+        
+        address walletAddress = emailToWallet[emailHash];
+        
+        // Transfer assets
+        if (isNFT) {
+            // NFT transfer
+            IERC721(token).transferFrom(msg.sender, walletAddress, amount);
+        } else if (token == address(0)) {
+            // ETH transfer
+            require(msg.value == amount, "Incorrect ETH amount");
+            (bool success, ) = walletAddress.call{value: amount}("");
+            require(success, "ETH transfer failed");
+        } else {
+            // ERC20 transfer
+            IERC20(token).transferFrom(msg.sender, walletAddress, amount);
+        }
+        
+        // Record transfer
+        pendingTransfers[emailHash].push(CryptoTransfer({
+            token: token,
+            amount: amount,
+            isNFT: isNFT,
+            sender: msg.sender,
+            recipientEmail: recipientEmail,
+            timestamp: block.timestamp,
+            claimed: false
+        }));
+        
+        emit CryptoSent(emailHash, token, amount, msg.sender);
+    }
+    
+    function getPendingTransfers(string calldata email) 
+        external 
+        view 
+        returns (CryptoTransfer[] memory) 
+    {
+        bytes32 emailHash = computeWalletAddress(email);
+        return pendingTransfers[emailHash];
+    }
+    
+    function claimWallet(
+        string calldata email,
+        address claimant
+    ) external onlyRelayer {
+        bytes32 emailHash = computeWalletAddress(email);
+        address walletAddress = emailToWallet[emailHash];
+        
+        require(walletAddress != address(0), "No wallet for this email");
+        require(!isWalletDeployed[walletAddress], "Already claimed");
+        
+        // Mark all transfers as claimed
+        CryptoTransfer[] storage transfers = pendingTransfers[emailHash];
+        for (uint256 i = 0; i < transfers.length; i++) {
+            transfers[i].claimed = true;
+        }
+        
+        isWalletDeployed[walletAddress] = true;
+        
+        // Link email to claimant address
+        emailOwner[email] = claimant;
+        addressToEmail[claimant] = email;
+        
+        emit WalletClaimed(emailHash, walletAddress, claimant);
+    }
+    
+    // ============ ADMIN FUNCTIONS ============
+    
+    function authorizeRelayer(address relayer, bool authorized) external onlyOwner {
+        authorizedRelayers[relayer] = authorized;
+        emit RelayerAuthorized(relayer, authorized);
+    }
+    
+    function withdrawFees() external onlyOwner {
+        payable(owner).transfer(address(this).balance);
+    }
+}
+
+// Helper interfaces
+interface IERC20 {
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function transfer(address to, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+}
+
+interface IERC721 {
+    function transferFrom(address from, address to, uint256 tokenId) external;
+    function ownerOf(uint256 tokenId) external view returns (address);
+}
+```
+
+---
+
+## Database Schema
+
+```javascript
+// MongoDB Collections
+
+// Users Collection
+{
+  _id: ObjectId,
+  email: "user@example.com",
+  passwordHash: "bcrypt_hash", // For traditional auth
+  walletAddress: "0x...", // Optional, if wallet linked
+  createdAt: Date,
+  lastLogin: Date,
+  authType: "traditional" | "wallet" | "hybrid",
+  emailVerified: true,
+  publicKey: "encryption_public_key", // For E2E encryption
+  preferences: {
+    defaultAuthMethod: "password",
+    enableCryptoFeatures: true,
+    notifications: {
+      email: true,
+      cryptoReceived: true
+    }
+  }
+}
+
+// Pending Crypto Transfers
+{
+  _id: ObjectId,
+  emailHash: "keccak256_hash",
+  recipientEmail: "recipient@gmail.com",
+  senderAddress: "0x...",
+  senderEmail: "sender@basemailer.com",
+  transfers: [
+    {
+      type: "erc20",
+      token: "0x...",
+      symbol: "USDC",
+      amount: "100",
+      decimals: 6
+    },
+    {
+      type: "nft",
+      contract: "0x...",
+      tokenId: "123",
+      name: "Cool NFT #123"
+    }
+  ],
+  walletAddress: "0x...", // Deterministic address
+  status: "pending" | "claimed" | "expired",
+  claimToken: "random_token",
+  claimLink: "https://basemailer.com/claim/...",
+  expiresAt: Date,
+  claimedAt: Date,
+  claimedBy: "0x...",
+  notificationSent: true,
+  createdAt: Date
+}
+
+// Claim Tokens
+{
+  _id: ObjectId,
+  token: "secure_random_token",
+  email: "recipient@gmail.com",
+  emailHash: "keccak256_hash",
+  walletAddress: "0x...",
+  transfers: [...],
+  verificationCode: "123456",
+  verificationCodeExpiry: Date,
+  verified: false,
+  used: false,
+  expiresAt: Date,
+  createdAt: Date
+}
+
+// Email Verification Codes
+{
+  _id: ObjectId,
+  email: "user@example.com",
+  code: "123456",
+  type: "claim" | "registration" | "2fa",
+  expiresAt: Date,
+  attempts: 0,
+  used: false,
+  createdAt: Date
+}
+
+// Mail Messages (Metadata - content in IPFS)
+{
+  _id: ObjectId,
+  messageId: "unique_id",
+  from: "sender@basemailer.com",
+  to: ["recipient@example.com"],
+  subject: "Hello",
+  ipfsCid: "Qm...",
+  encrypted: true,
+  hasCryptoTransfer: true,
+  cryptoTransferId: ObjectId,
+  timestamp: Date,
+  flags: ["seen", "answered"],
+  folder: "inbox" | "sent" | "drafts" | "trash"
+}
+
+// Gas Sponsorship Tracking
+{
+  _id: ObjectId,
+  email: "user@example.com",
+  operation: "wallet_deployment",
+  transactionHash: "0x...",
+  gasUsed: 250000,
+  gasCost: "0.001", // ETH
+  sponsoredBy: "relayer_address",
+  timestamp: Date,
+  status: "success" | "failed"
+}
+```
+
+---
+
+## API Endpoints
+
+### Authentication
+
+```javascript
+// POST /api/auth/register
+{
+  email: "user@example.com",
+  password: "secure_password",
+  type: "traditional" // or "wallet"
+}
+
+// POST /api/auth/login
+{
+  email: "user@example.com",
+  password: "password_or_signature",
+  authType: "traditional" // or "wallet"
+}
+
+// POST /api/auth/link-wallet
+{
+  email: "user@example.com",
+  walletAddress: "0x...",
+  signature: "0x..."
+}
+
+// POST /api/auth/challenge
+{
+  email: "user@example.com"
+}
+// Response: { nonce: "0x...", expires: timestamp }
+```
+
+### Email Operations
+
+```javascript
+// POST /api/mail/send
+{
+  from: "sender@basemailer.com",
+  to: ["recipient@example.com"],
+  subject: "Hello",
+  body: "Message body",
+  cryptoTransfer: {
+    enabled: true,
+    assets: [
+      { type: "erc20", symbol: "USDC", amount: "100" },
+      { type: "nft", contract: "0x...", tokenId: "123" }
+    ]
+  }
+}
+
+// GET /api/mail/inbox?email=user@basemailer.com
+// Response: Array of mail metadata
+
+// GET /api/mail/message/:messageId
+// Response: Decrypted message content
+```
+
+### Crypto Transfer
+
+```javascript
+// POST /api/crypto/send
+{
+  recipientEmail: "user@gmail.com",
+  assets: [
+    {
+      type: "erc20",
+      token: "0x...",
+      amount: "100"
+    }
+  ]
+}
+
+// POST /api/crypto/quote
+{
+  recipientEmail: "user@gmail.com",
+  assets: [...]
+}
+// Response: { walletAddress: "0x...", estimatedGas: "..." }
+
+// GET /api/crypto/pending/:email
+// Response: Array of pending transfers
+```
+
+### Claim Process
+
+```javascript
+// POST /api/claim/verify
+{
+  token: "claim_token"
+}
+// Response: { valid: true, email: "...", transfers: [...] }
+
+// POST /api/claim/send-code
+{
+  email: "user@gmail.com"
+}
+// Response: { sent: true, expiresIn: 300 }
+
+// POST /api/claim/verify-code
+{
+  email: "user@gmail.com",
+  code: "123456"
+}
+// Response: { valid: true }
+
+// POST /api/claim/deploy
+{
+  email: "user@gmail.com",
+  ownerAddress: "0x...",
+  claimToken: "...",
+  authType: "password" | "wallet"
+}
+// Response: { 
+//   walletAddress: "0x...", 
+//   transactionHash: "0x...",
+//   assets: [...]
+// }
+```
+
+---
+
+## Email Client Configuration
+
+### Gmail App Setup (BaseMailer Account)
+
+**Step 1: Generate App Password (for traditional auth)**
+```
+1. Go to Google Account Settings
+2. Enable 2-Factor Authentication
+3. Generate App Password for "Mail"
+4. Use this as IMAP/SMTP password
+```
+
+**Step 2: Configure Gmail**
+```
+Settings → Accounts → Add another email address
+
+Incoming Mail (IMAP):
+├─ Server: imap.basemailer.com
+├─ Port: 993 (SSL/TLS)
+├─ Username: alice@basemailer.com
+└─ Password: [Your Password or Wallet Signature]
+
+Outgoing Mail (SMTP):
+├─ Server: smtp.basemailer.com
+├─ Port: 587 (TLS)
+├─ Username: alice@basemailer.com
+└─ Password: [Same as IMAP]
+```
+
+### Apple Mail Setup
+
+```
+Mail → Preferences → Accounts → Add Account → Other
+
+Account Type: IMAP
+
+Incoming Mail Server:
+├─ Hostname: imap.basemailer.com
+├─ Port: 993
+├─ Username: alice@basemailer.com
+├─ Password: [Your Password]
+└─ Use SSL: Yes
+
+Outgoing Mail Server:
+├─ Hostname: smtp.basemailer.com
+├─ Port: 587
+├─ Username: alice@basemailer.com
+├─ Password: [Your Password]
+└─ Use TLS: Yes
+```
+
+### Thunderbird Setup
+
+```
+Tools → Account Settings → Account Actions → Add Mail Account
+
+Your Name: Alice
+Email: alice@basemailer.com
+Password: [Your Password]
+
+[Configure Manually]
+
+Incoming: IMAP
+├─ Server: imap.basemailer.com
+├─ Port: 993
+├─ SSL: SSL/TLS
+└─ Authentication: Normal Password
+
+Outgoing: SMTP
+├─ Server: smtp.basemailer.com
+├─ Port: 587
+├─ SSL: STARTTLS
+└─ Authentication: Normal Password
+```
+
+---
+
+## Web Client Interface
+
+### Dashboard
+
+```javascript
+// React Component: Dashboard
+import React, { useState, useEffect } from 'react';
+import { ethers } from 'ethers';
+
+function Dashboard({ user }) {
+  const [emails, setEmails] = useState([]);
+  const [pendingCrypto, setPendingCrypto] = useState([]);
+  const [composing, setComposing] = useState(false);
+  
+  useEffect(() => {
+    loadEmails();
+    loadPendingCrypto();
+  }, [user]);
+  
+  async function loadEmails() {
+    const response = await fetch(`/api/mail/inbox?email=${user.email}`);
+    const data = await response.json();
+    setEmails(data);
+  }
+  
+  async function loadPendingCrypto() {
+    const response = await fetch(`/api/crypto/pending/${user.email}`);
+    const data = await response.json();
+    setPendingCrypto(data);
+  }
+  
+  return (
+    <div className="dashboard">
+      <Sidebar user={user} />
+      
+      <main className="main-content">
+        {pendingCrypto.length > 0 && (
+          <CryptoBanner transfers={pendingCrypto} />
+        )}
+        
+        <Toolbar onCompose={() => setComposing(true)} />
+        
+        {composing ? (
+          <ComposeEmail 
+            user={user} 
+            onClose={() => setComposing(false)} 
+          />
+        ) : (
+          <EmailList emails={emails} />
+        )}
+      </main>
+    </div>
+  );
+}
+
+function CryptoBanner({ transfers }) {
+  const totalValue = transfers.reduce((sum, t) => {
+    return sum + parseFloat(t.amount || 0);
+  }, 0);
+  
+  return (
+    <div className="crypto-banner">
+      <div className="banner-icon">💰</div>
+      <div className="banner-content">
+        <h3>You have {transfers.length} pending crypto transfer(s)</h3>
+        <p>Total value: ${totalValue.toFixed(2)}</p>
+      </div>
+      <button className="claim-button">
+        Claim Now
+      </button>
+    </div>
+  );
+}
+
+function ComposeEmail({ user, onClose }) {
+  const [to, setTo] = useState('');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [cryptoEnabled, setCryptoEnabled] = useState(false);
+  const [cryptoAssets, setCryptoAssets] = useState([]);
+  
+  async function handleSend() {
+    const payload = {
+      from: user.email,
+      to: to.split(',').map(e => e.trim()),
+      subject,
+      body,
+      cryptoTransfer: cryptoEnabled ? {
+        enabled: true,
+        assets: cryptoAssets
+      } : null
+    };
+    
+    const response = await fetch('/api/mail/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    
+    if (response.ok) {
+      alert('Email sent successfully!');
+      onClose();
+    }
+  }
+  
+  return (
+    <div className="compose-email">
+      <div className="compose-header">
+        <h2>New Message</h2>
+        <button onClick={onClose}>×</button>
+      </div>
+      
+      <div className="compose-fields">
+        <input
+          type="text"
+          placeholder="To"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+        />
+        
+        <input
+          type="text"
+          placeholder="Subject"
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+        />
+        
+        <textarea
+          placeholder="Message"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={15}
+        />
+      </div>
+      
+      <div className="compose-crypto">
+        <label>
+          <input
+            type="checkbox"
+            checked={cryptoEnabled}
+            onChange={(e) => setCryptoEnabled(e.target.checked)}
+          />
+          Attach Crypto Assets
+        </label>
+        
+        {cryptoEnabled && (
+          <CryptoAttachment
+            assets={cryptoAssets}
+            onChange={setCryptoAssets}
+          />
+        )}
+      </div>
+      
+      <div className="compose-actions">
+        <button onClick={handleSend} className="send-button">
+          Send {cryptoEnabled && '+ Transfer Crypto'}
+        </button>
+        <button onClick={onClose} className="cancel-button">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CryptoAttachment({ assets, onChange }) {
+  const [assetType, setAssetType] = useState('erc20');
+  const [token, setToken] = useState('USDC');
+  const [amount, setAmount] = useState('');
+  
+  function addAsset() {
+    if (assetType === 'erc20' && amount) {
+      onChange([...assets, {
+        type: 'erc20',
+        symbol: token,
+        amount
+      }]);
+      setAmount('');
+    }
+  }
+  
+  return (
+    <div className="crypto-attachment">
+      <select value={assetType} onChange={(e) => setAssetType(e.target.value)}>
+        <option value="erc20">ERC20 Token</option>
+        <option value="nft">NFT</option>
+        <option value="eth">ETH</option>
+      </select>
+      
+      {assetType === 'erc20' && (
+        <>
+          <select value={token} onChange={(e) => setToken(e.target.value)}>
+            <option value="USDC">USDC</option>
+            <option value="USDT">USDT</option>
+            <option value="DAI">DAI</option>
+          </select>
+          <input
+            type="number"
+            placeholder="Amount"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+        </>
+      )}
+      
+      <button onClick={addAsset}>Add Asset</button>
+      
+      {assets.length > 0 && (
+        <div className="assets-list">
+          <h4>Attached Assets:</h4>
+          <ul>
+            {assets.map((asset, i) => (
+              <li key={i}>
+                {asset.amount} {asset.symbol}
+                <button onClick={() => onChange(assets.filter((_, idx) => idx !== i))}>
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default Dashboard;
+```
+
+---
+
+## Deployment Architecture
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    LOAD BALANCER                             │
+│                  (nginx / Cloudflare)                        │
+└────────────┬──────────────────────────┬──────────────────────┘
+             │                          │
+             ▼                          ▼
+┌─────────────────────────┐  ┌─────────────────────────┐
+│   SMTP/IMAP Servers     │  │   Web Application       │
+│   (Node.js Cluster)     │  │   (Next.js / React)     │
+│                         │  │                         │
+│   - Port 587 (SMTP)     │  │   - Frontend            │
+│   - Port 993 (IMAP)     │  │   - API Routes          │
+│   - Port 25 (MX)        │  │   - WebSocket (live)    │
+└────────────┬────────────┘  └────────────┬────────────┘
+             │                            │
+             └──────────┬─────────────────┘
+                        │
+        ┌───────────────┼───────────────┐
+        │               │               │
+        ▼               ▼               ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│   MongoDB    │ │   Redis      │ │   IPFS Node  │
+│              │ │              │ │              │
+│ - Users      │ │ - Sessions   │ │ - Messages   │
+│ - Messages   │ │ - Cache      │ │ - Files      │
+│ - Transfers  │ │ - Queues     │ │              │
+└──────────────┘ └──────────────┘ └──────────────┘
+        │
+        ▼
+┌──────────────────────────────────────────────────────────────┐
+│                    BASE BLOCKCHAIN                           │
+│                                                              │
+│   - Smart Contracts                                          │
+│   - Account Abstraction                                      │
+│   - Mail Index                                               │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Security Considerations
+
+### 1. Email Verification
+- Send verification codes to recipient email
+- Require code entry before wallet deployment
+- Codes expire after 10 minutes
+- Rate limit code generation (max 3 per hour)
+
+### 2. Wallet Security
+- Non-custodial architecture (platform never holds funds)
+- Smart contract wallets use Account Abstraction
+- Optional 2FA for high-value claims
+- Session management with secure JWT tokens
+
+### 3. Encryption
+- TLS for all SMTP/IMAP connections
+- Optional PGP encryption for email content
+- End-to-end encryption for crypto transfer metadata
+- Encrypted IPFS storage
+
+### 4. Rate Limiting
+```javascript
+// Rate limits
+const LIMITS = {
+  emailSend: { max: 100, window: '1h' },
+  cryptoTransfer: { max: 10, window: '1h' },
+  claimAttempts: { max: 5, window: '1h' },
+  verification: { max: 3, window: '1h' }
+};
+```
+
+### 5. Anti-Spam
+- SPF/DKIM/DMARC validation
+- Reputation scoring for senders
+- Greylisting for unknown senders
+- Content filtering
+
+---
+
+## Pricing Model
+
+### Free Tier
+- ✅ Unlimited email sending/receiving
+- ✅ 1 GB IPFS storage
+- ✅ 5 crypto transfers per month
+- ✅ Basic support
+
+### Pro Tier ($9.99/month)
+- ✅ Everything in Free
+- ✅ 50 GB IPFS storage
+- ✅ Unlimited crypto transfers
+- ✅ Custom domain support
+- ✅ Priority email delivery
+- ✅ Advanced analytics
+- ✅ Priority support
+
+### Enterprise Tier (Custom)
+- ✅ Everything in Pro
+- ✅ Unlimited storage
+- ✅ Dedicated SMTP/IMAP servers
+- ✅ Custom blockchain integration
+- ✅ SLA guarantees
+- ✅ Dedicated support
+
+---
+
+## Roadmap
+
+### Phase 1: MVP (Months 1-3)
+- ✅ Basic SMTP/IMAP server implementation
+- ✅ Traditional email/password authentication
+- ✅ Web client interface
+- ✅ IPFS integration
+- ✅ Base blockchain integration
+
+### Phase 2: Crypto Features (Months 4-6)
+- ✅ ERC20 token transfers via email
+- ✅ Smart contract wallet factory
+- ✅ Claim process implementation
+- ✅ Gas sponsorship system
+- ✅ NFT support
+- 📧 Email client plugins (Gmail, Outlook)
+
+### Phase 3: Enhancement (Months 7-9)
+- 📧 Mobile apps (iOS, Android)
+- 📧 Advanced encryption (PGP support)
+- 📧 Multi-chain support (Ethereum, Polygon)
+- 📧 Fiat on/off ramps
+
+### Phase 4: Scale (Months 10-12)
+- 📧 Custom domain support
+- 📧 Team/organization features
+- 📧 API for developers
+- 📧 Marketplace for email templates
+- 📧 Analytics dashboard
+
+---
+
+## Success Metrics
+
+### User Adoption
+- **Target**: 10,000 registered users in first 6 months
+- **KPI**: 30% monthly active user rate
+- **Goal**: 50,000 emails sent per month
+
+### Crypto Adoption
+- **Target**: 1,000 crypto transfers in first 3 months
+- **KPI**: $100,000 total value transferred
+- **Goal**: 20% of users send crypto via email
+
+### Technical Performance
+- **Email Delivery**: >99% success rate
+- **Uptime**: 99.9% availability
+- **Response Time**: <200ms API latency
+- **Blockchain**: <10 second transaction confirmation
+
+---
+
+## Competitive Advantages
+
+### vs Traditional Email (Gmail, Outlook)
+- ✅ **Decentralized**: No single point of failure
+- ✅ **Censorship-resistant**: Cannot be shut down
+- ✅ **Crypto-native**: Built-in Web3 features
+- ✅ **Privacy**: Optional E2E encryption
+
+### vs Crypto-only Email (EthMail, etc.)
+- ✅ **Universal compatibility**: Works with ANY email address
+- ✅ **No wallet required**: Recipients can claim without prior setup
+- ✅ **Traditional auth option**: Lowers barrier to entry
+- ✅ **Bidirectional**: Send to/from regular email
+
+### vs Payment Apps (Venmo, Cash App)
+- ✅ **Email-based**: No app installation required
+- ✅ **Non-custodial**: Users own their funds
+- ✅ **Global**: Works across borders
+- ✅ **Multi-asset**: Supports any ERC20/NFT
+
+---
+
+## Technical Stack
+
+### Frontend
+- **Framework**: Next.js 14, React 18
+- **Styling**: Tailwind CSS
+- **State Management**: Zustand
+- **Web3**: ethers.js v6, wagmi, RainbowKit
+
+### Backend
+- **Runtime**: Node.js 20
+- **Framework**: Express.js
+- **SMTP/IMAP**: nodemailer, imap-server
+- **Queue**: Bull (Redis-based)
+- **Cron**: node-cron
+
+### Database
+- **Primary**: MongoDB 7
+- **Cache**: Redis 7
+- **Search**: Elasticsearch (optional)
+
+### Blockchain
+- **Network**: Base (Ethereum L2)
+- **Smart Contracts**: Solidity 0.8.20
+- **Account Abstraction**: ERC-4337
+- **RPC**: Alchemy or Infura
+
+### Storage
+- **Decentralized**: IPFS (Pinata or Web3.Storage)
+- **CDN**: Cloudflare
+- **Backups**: AWS S3
+
+### DevOps
+- **Container**: Docker
+- **Orchestration**: Kubernetes
+- **CI/CD**: GitHub Actions
+- **Monitoring**: Datadog, Sentry
+- **Logs**: Logstash, Elasticsearch, Kibana
+
+---
+
+## Conclusion
+
+BaseMailer v2.0 represents a **groundbreaking fusion** of traditional email and blockchain technology:
+
+1. **Universal Adoption**: Works with existing email clients and addresses
+2. **Dual Authentication**: Supports both traditional and Web3 login methods
+3. **Crypto Innovation**: Send digital assets to ANY email address
+4. **Non-Custodial**: Users always control their funds
+5. **One-Click Onboarding**: Instant wallet creation via email verification
+
+This approach **removes all barriers** to crypto adoption while maintaining the **familiar email experience** users know and love.
+
+**Next Steps**: Ready to implement! Should we start with:
+1. Smart contract development
+2. SMTP/IMAP server implementation
+3. Web client interface
+4. Database and API setup

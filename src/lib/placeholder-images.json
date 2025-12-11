@@ -1,0 +1,124 @@
+{
+  "placeholderImages": [
+    {
+      "id": "user-avatar-1",
+      "description": "User avatar",
+      "imageUrl": "/profilepics.jpg",
+      "imageHint": "person face"
+    },
+    {
+      "id": "user-avatar-2",
+      "description": "User avatar",
+      "imageUrl": "/profilepics.jpg",
+      "imageHint": "company logo"
+    },
+    {
+      "id": "user-avatar-3",
+      "description": "User avatar",
+      "imageUrl": "/profilepics.jpg",
+      "imageHint": "company logo"
+    },
+    {
+      "id": "user-avatar-4",
+      "description": "User avatar",
+      "imageUrl": "/profilepics.jpg",
+      "imageHint": "person face"
+    },
+    {
+      "id": "user-avatar-5",
+      "description": "User avatar",
+      "imageUrl": "/profilepics.jpg",
+      "imageHint": "person face"
+    },
+    {
+      "id": "user-avatar-6",
+      "description": "User avatar",
+      "imageUrl": "/profilepics.jpg",
+      "imageHint": "company logo"
+    },
+    {
+      "id": "user-avatar-7",
+      "description": "User avatar",
+      "imageUrl": "/profilepics.jpg",
+      "imageHint": "person face"
+    },
+    {
+      "id": "user-avatar-8",
+      "description": "User avatar",
+      "imageUrl": "/profilepics.jpg",
+      "imageHint": "person face"
+    },
+    {
+      "id": "user-avatar-9",
+      "description": "User avatar",
+      "imageUrl": "/profilepics.jpg",
+      "imageHint": "company logo"
+    },
+    {
+      "id": "user-avatar-10",
+      "description": "User avatar",
+      "imageUrl": "/profilepics.jpg",
+      "imageHint": "person face"
+    },
+    {
+      "id": "user-avatar-11",
+      "description": "User avatar",
+      "imageUrl": "/profilepics.jpg",
+      "imageHint": "company logo"
+    },
+    {
+      "id": "user-avatar-12",
+      "description": "User avatar",
+      "imageUrl": "/profilepics.jpg",
+      "imageHint": "person face"
+    },
+    {
+      "id": "user-avatar-13",
+      "description": "User avatar",
+      "imageUrl": "/profilepics.jpg",
+      "imageHint": "company logo"
+    },
+    {
+      "id": "user-avatar-14",
+      "description": "User avatar",
+      "imageUrl": "/profilepics.jpg",
+      "imageHint": "person face"
+    },
+    {
+      "id": "user-avatar-15",
+      "description": "User avatar",
+      "imageUrl": "/profilepics.jpg",
+      "imageHint": "person face"
+    },
+    {
+      "id": "user-avatar-16",
+      "description": "User avatar",
+      "imageUrl": "/profilepics.jpg",
+      "imageHint": "company logo"
+    },
+    {
+      "id": "nft-1",
+      "description": "NFT Image",
+      "imageUrl": "https://images.unsplash.com/photo-1615068501918-9d862e1908df?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxwaXhlbGF0ZWQlMjBwdW5rfGVufDB8fHx8MTc2MzYyODc1NHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "pixelated punk"
+    },
+    {
+      "id": "nft-2",
+      "description": "NFT Image",
+      "imageUrl": "https://images.unsplash.com/photo-1754413810163-cc410a6f12fd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxjYXJ0b29uJTIwYXBlfGVufDB8fHx8MTc2MzYyODc1NHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cartoon ape"
+    },
+    {
+      "id": "nft-3",
+      "description": "NFT Image",
+      "imageUrl": "https://images.unsplash.com/photo-1622542796254-5b9c46ab0d2f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxhYnN0cmFjdCUyMGFydHxlbnwwfHx8fDE3NjM1NjQ1OTB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "abstract art"
+    },
+    {
+      "id": "nft-4",
+      "description": "NFT Image",
+      "imageUrl": "https://images.unsplash.com/photo-1737834495647-f60b20534b22?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxjb2xvcmZ1bCUyMHNxdWlnZ2xlfGVufDB8fHx8MTc2MzYyODc1NHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "colorful squiggle"
+    }
+  ]
+}
