@@ -26,9 +26,6 @@ export default function SettingsPage() {
   // Only show export for embedded wallet users
   const isEmbeddedWallet = user?.authType === 'coinbase-embedded';
 
-  // Prioritize user.walletAddress (always available for embedded wallets)
-  // Fallback to eoaAddress or evmAddress
-  const walletAddress = user?.walletAddress || eoaAddress || evmAddress;
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -83,8 +80,8 @@ export default function SettingsPage() {
                   </span>
                 </div>
                 <div className="flex-shrink-0">
-                  {walletAddress ? (
-                    <ExportWalletModal address={walletAddress} />
+                  {eoaAddress ? (
+                    <ExportWalletModal address={eoaAddress} />
                   ) : (
                     <Button variant="outline" disabled>
                       Loading wallet...
