@@ -92,6 +92,21 @@ body {
   }
 }
 
+/* Mobile viewport height fix for browser UI */
+:root {
+  --vh: 1vh;
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --vh: 1dvh;
+  }
+}
+
+.h-screen-mobile {
+  height: calc(var(--vh, 1vh) * 100);
+}
+
 /* Autofill Override */
 input:-webkit-autofill,
 input:-webkit-autofill:hover, 
