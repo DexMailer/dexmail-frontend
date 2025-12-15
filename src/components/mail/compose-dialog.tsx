@@ -130,6 +130,31 @@ export function ComposeDialog({
     setIsLoading(true);
 
     try {
+      // Validate all @dexmail.app addresses before sending
+      const dexmailAddresses = normalizedRecipients.filter(email =>
+        email.toLowerCase().endsWith('@dexmail.app')
+      );
+
+      if (dexmailAddresses.length > 0) {
+        const validationResults = await Promise.all(
+          dexmailAddresses.map(email => mailService.validateEmail(email))
+        );
+
+        const invalidAddresses = dexmailAddresses.filter((email, index) =>
+          !validationResults[index].isValid
+        );
+
+        if (invalidAddresses.length > 0) {
+          toast({
+            title: "Invalid Recipients",
+            description: `The following @dexmail.app addresses do not exist: ${invalidAddresses.join(', ')}`,
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
+
       // Check CDP authentication for embedded wallet users
       if (user?.authType === 'coinbase-embedded' && !isSignedIn) {
         toast({
@@ -258,13 +283,12 @@ export function ComposeDialog({
               disabled={isLoading}
             />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="subject" className="text-right">
+          <div className="grid gap-2">
+            <Label htmlFor="subject">
               Subject
             </Label>
             <Input
               id="subject"
-              className="col-span-3"
               placeholder="Email subject"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}

@@ -268,7 +268,6 @@ class MailService {
         }
       }
 
-      // Store claim code if applicable
       if (claimCode && data.cryptoTransfer?.assets) {
         const recipient = data.to[0];
         storeClaimCode(
@@ -376,6 +375,41 @@ class MailService {
       claimCode,
       isDirectTransfer
     };
+  }
+
+  async validateEmail(email: string): Promise<{ isValid: boolean; exists: boolean; reason?: string }> {
+    // Basic format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return { isValid: false, exists: false, reason: 'Invalid email format' };
+    }
+
+    // External emails are always valid (we can't check them)
+    if (!email.toLowerCase().endsWith('@dexmail.app')) {
+      return { isValid: true, exists: true };
+    }
+
+    // Check if @dexmail.app address exists on blockchain
+    try {
+      const registrationStatus = await readContract(wagmiConfig, {
+        address: BASEMAILER_ADDRESS,
+        abi: baseMailerAbi,
+        functionName: 'isRecipientRegistered',
+        args: [email]
+      }) as [boolean, boolean];
+
+      const isRegistered = registrationStatus[0];
+
+      if (!isRegistered) {
+        return { isValid: false, exists: false, reason: 'Address not found' };
+      }
+
+      return { isValid: true, exists: true };
+    } catch (error) {
+      console.error('[MailService] Error validating email:', error);
+      // On error, assume valid to avoid blocking sends
+      return { isValid: true, exists: true, reason: 'Could not verify' };
+    }
   }
 
   private async fetchEmailFromIPFS(cidHash: string): Promise<{ subject: string; body: string; from?: string; inReplyTo?: string } | null> {

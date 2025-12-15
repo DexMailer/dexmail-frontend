@@ -2,8 +2,15 @@
 
 import { useState, KeyboardEvent, useRef, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { mailService } from '@/lib/mail-service';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface EmailTagInputProps {
     emails: string[];
@@ -13,8 +20,14 @@ interface EmailTagInputProps {
     className?: string;
 }
 
-const isValidEmail = (email: string): boolean => {
-    // Basic email validation
+interface EmailValidation {
+    email: string;
+    isValid: boolean;
+    reason?: string;
+    isValidating: boolean;
+}
+
+const isValidEmailFormat = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 };
@@ -28,7 +41,33 @@ export function EmailTagInput({
 }: EmailTagInputProps) {
     const [inputValue, setInputValue] = useState('');
     const [isFocused, setIsFocused] = useState(false);
+    const [validations, setValidations] = useState<Record<string, EmailValidation>>({});
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Validate email addresses
+    useEffect(() => {
+        emails.forEach(async (email) => {
+            if (validations[email]) return; // Already validated or validating
+
+            // Set validating state
+            setValidations(prev => ({
+                ...prev,
+                [email]: { email, isValid: true, isValidating: true }
+            }));
+
+            // Validate
+            const result = await mailService.validateEmail(email);
+            setValidations(prev => ({
+                ...prev,
+                [email]: {
+                    email,
+                    isValid: result.isValid,
+                    reason: result.reason,
+                    isValidating: false
+                }
+            }));
+        });
+    }, [emails]);
 
     const addEmail = (email: string) => {
         const trimmedEmail = email.trim();
@@ -50,7 +89,15 @@ export function EmailTagInput({
     };
 
     const removeEmail = (indexToRemove: number) => {
+        const emailToRemove = emails[indexToRemove];
         onChange(emails.filter((_, index) => index !== indexToRemove));
+
+        // Clean up validation state
+        setValidations(prev => {
+            const newValidations = { ...prev };
+            delete newValidations[emailToRemove];
+            return newValidations;
+        });
     };
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -87,30 +134,52 @@ export function EmailTagInput({
             )}
             onClick={handleContainerClick}
         >
-            {emails.map((email, index) => {
-                const isValid = isValidEmail(email);
-                return (
-                    <Badge
-                        key={index}
-                        variant={isValid ? 'default' : 'destructive'}
-                        className="gap-1 pr-1 pl-2 py-1"
-                    >
-                        <span className="text-xs">{email}</span>
-                        <button
-                            type="button"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                removeEmail(index);
-                            }}
-                            disabled={disabled}
-                            className="ml-1 rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            <TooltipProvider delayDuration={300}>
+                {emails.map((email, index) => {
+                    const validation = validations[email];
+                    const isValidating = validation?.isValidating ?? false;
+                    const isValid = validation?.isValid ?? isValidEmailFormat(email);
+                    const reason = validation?.reason;
+
+                    const badge = (
+                        <Badge
+                            key={index}
+                            variant={isValid ? 'default' : 'destructive'}
+                            className="gap-1 pr-1 pl-2 py-1"
                         >
-                            <X className="h-3 w-3" />
-                            <span className="sr-only">Remove {email}</span>
-                        </button>
-                    </Badge>
-                );
-            })}
+                            {isValidating && <Loader2 className="h-3 w-3 animate-spin" />}
+                            <span className="text-xs">{email}</span>
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeEmail(index);
+                                }}
+                                disabled={disabled}
+                                className="ml-1 rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                            >
+                                <X className="h-3 w-3" />
+                                <span className="sr-only">Remove {email}</span>
+                            </button>
+                        </Badge>
+                    );
+
+                    if (!isValid && reason) {
+                        return (
+                            <Tooltip key={index}>
+                                <TooltipTrigger asChild>
+                                    {badge}
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>{reason}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        );
+                    }
+
+                    return badge;
+                })}
+            </TooltipProvider>
             <input
                 ref={inputRef}
                 type="text"
