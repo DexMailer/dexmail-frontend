@@ -15,6 +15,7 @@ import { Moon, Sun } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { ExportWalletModal } from '@coinbase/cdp-react';
 import { useEvmAddress, useCurrentUser } from "@coinbase/cdp-hooks";
+import Link from 'next/link';
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -58,6 +59,28 @@ export default function SettingsPage() {
                 />
                 <Moon className="h-5 w-5" />
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Whitelist & Contact Fees</CardTitle>
+            <CardDescription>
+              Manage your whitelist and set pay-to-contact fees to control spam.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <span className="font-medium">Configure Whitelist</span>
+                <span className="text-sm text-muted-foreground">
+                  Set fees for non-whitelisted senders.
+                </span>
+              </div>
+              <Button variant="outline" asChild>
+                <Link href="/dashboard/settings/whitelist">Manage</Link>
+              </Button>
             </div>
           </CardContent>
         </Card>

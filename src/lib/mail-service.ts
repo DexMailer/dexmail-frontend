@@ -121,21 +121,29 @@ class MailService {
       emailBody += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     }
 
-    // 1. Upload to IPFS via API route
+    const { to, subject, body, inReplyTo } = data;
+    const assets = data.cryptoTransfer?.assets;
+
+    // Validation: Ensure body is not empty to avoid "empty content saved" issues
+    if (!body || body.trim() === '') {
+      throw new Error("Email body cannot be empty");
+    }
+
+    // 1. Upload email content to IPFS
+    const emailContent = {
+      subject,
+      body: emailBody, // Use the potentially modified emailBody
+      from: data.from, // Ensure we save who sent it inside the content
+      timestamp: Date.now(),
+      assets: assets?.map(a => ({ ...a, claimCode: undefined })), // Security: Redact claim code from IPFS
+      claimCode: claimCode ? true : false,
+      inReplyTo: inReplyTo
+    };
+
     const ipfsResponse = await fetch('/api/ipfs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: data.from,
-        to: data.to,
-        subject: data.subject,
-        body: emailBody,
-        timestamp: new Date().toISOString(),
-        cryptoTransfer: data.cryptoTransfer,
-        claimCode: claimCode,
-        isDirectTransfer: isDirectTransfer,
-        inReplyTo: data.inReplyTo
-      })
+      body: JSON.stringify(emailContent)
     });
 
     if (!ipfsResponse.ok) {
@@ -293,6 +301,38 @@ class MailService {
           let recipientTxHash = '';
 
           // Use appropriate transaction method based on auth type
+          // Check whitelist and fee
+          let value = BigInt(0);
+          if (!isExternal) {
+            try {
+              // Check if sender is whitelisted by recipient
+              // Args: userEmail (recipient), targetSenderEmail (sender)
+              const isWhitelisted = await readContract(wagmiConfig, {
+                address: BASEMAILER_ADDRESS,
+                abi: baseMailerAbi,
+                functionName: 'isWhitelisted',
+                args: [recipient, data.from]
+              }) as boolean;
+
+              if (!isWhitelisted) {
+                const fee = await readContract(wagmiConfig, {
+                  address: BASEMAILER_ADDRESS,
+                  abi: baseMailerAbi,
+                  functionName: 'getContactFee',
+                  args: [recipient]
+                }) as bigint;
+
+                if (fee > BigInt(0)) {
+                  console.log(`[MailService] Recipient ${recipient} requires contact fee: ${fee}`);
+                  value = fee;
+                }
+              }
+            } catch (checkError) {
+              console.warn('[MailService] Failed to check whitelist/fee:', checkError);
+            }
+          }
+
+          // Use appropriate transaction method based on auth type
           if (authType === 'coinbase-embedded' && sendTransaction) {
             // Embedded wallet: use CDP transaction
             const encodedData = encodeFunctionData({
@@ -303,7 +343,8 @@ class MailService {
 
             recipientTxHash = await sendTransaction({
               to: BASEMAILER_ADDRESS,
-              data: encodedData
+              data: encodedData,
+              value: value
             });
           } else {
             // External wallet: use wagmi
@@ -311,7 +352,8 @@ class MailService {
               address: BASEMAILER_ADDRESS,
               abi: baseMailerAbi,
               functionName: 'indexMail',
-              args: [cid, recipient, "", isExternal, false]
+              args: [cid, recipient, "", isExternal, false],
+              value: value
             });
           }
 
@@ -547,6 +589,13 @@ class MailService {
             args: [id]
           }) as any;
 
+          // Optimization: If sender is NOT the user, it is INBOX.
+          // If sender IS the user, it is SELF-SEND (INBOX) only if recipient is also user.
+          // But `getInbox` usually returns mails WHERE recipient == email.
+          // So if I send to myself, it appears here.
+          // If I send to SOMEONE ELSE, it should NOT appear here (and contract shouldn't return it).
+          // However, maybe we should filter out "Sent via DexMail" default messages if possible?
+
           let senderEmail = mail.sender;
           try {
             const emailFromAddress = await readContract(wagmiConfig, {
@@ -564,8 +613,11 @@ class MailService {
           }
 
           const ipfsContent = await this.fetchEmailFromIPFS(mail.cid);
-          const subject = ipfsContent?.subject || 'Email from blockchain';
-          const body = ipfsContent?.body || 'This email was sent via DexMail';
+
+          // Better fallback to distinguish between "Loading..." vs "Failed" vs "Empty"
+          const subject = ipfsContent ? (ipfsContent.subject || '(No Subject)') : 'Loading Subject...';
+          const body = ipfsContent ? (ipfsContent.body || '') : 'Loading content from decentralized storage...';
+
           const finalSender = (mail.isExternal && mail.originalSender) ? mail.originalSender : senderEmail;
 
           const newMessage: EmailMessage = {
@@ -575,9 +627,9 @@ class MailService {
             subject: subject,
             body: body,
             timestamp: mail.timestamp.toString(),
-            hasCryptoTransfer: mail.hasCrypto,
             ipfsCid: mail.cid,
-            inReplyTo: ipfsContent?.inReplyTo
+            inReplyTo: ipfsContent?.inReplyTo,
+            isSpam: mail.isSpam
           };
 
           messages.push(newMessage);
@@ -646,7 +698,8 @@ class MailService {
             { type: 'address', name: 'sender', indexed: true },
             { type: 'string', name: 'recipient' },
             { type: 'string', name: 'cid' },
-            { type: 'string', name: 'originalSender' }
+            { type: 'string', name: 'originalSender' },
+            { type: 'bool', name: 'isSpam' }
           ]
         },
         args: {
@@ -697,7 +750,8 @@ class MailService {
             timestamp: mail.timestamp.toString(),
             hasCryptoTransfer: mail.hasCrypto,
             ipfsCid: cidHash,
-            inReplyTo: ipfsContent?.inReplyTo
+            inReplyTo: ipfsContent?.inReplyTo,
+            isSpam: mail.isSpam
           };
 
           messages.push(newMessage);
@@ -737,7 +791,8 @@ class MailService {
       body: 'Loading...',
       timestamp: mail.timestamp.toString(),
       hasCryptoTransfer: mail.hasCrypto,
-      ipfsCid: mail.cid
+      ipfsCid: mail.cid,
+      isSpam: mail.isSpam
     };
   }
 

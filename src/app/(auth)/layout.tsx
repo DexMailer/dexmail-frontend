@@ -6,17 +6,15 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen md:min-h-screen h-screen-mobile md:h-auto flex-col bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="flex h-screen flex-col bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden">
       {/* Header with Logo */}
-      <div className="flex items-center justify-between p-6">
+      <div className="flex-none flex items-center justify-between p-6">
         <AppLogo />
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center px-6 pb-6">
-        <div className="w-full max-w-sm mx-auto">
-          {children}
-        </div>
+      {/* Main Content - Flex 1 to take remaining space */}
+      <div className="flex-1 p-6 md:p-12 overflow-hidden flex flex-col justify-center">
+        {children}
       </div>
     </div>
   );

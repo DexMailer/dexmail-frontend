@@ -78,65 +78,37 @@ function parseEmailThread(mail: Mail): ThreadMessage[] {
     avatarSeed: mail.name || mail.email
   };
 
-  // Split body by "On ... wrote:" pattern
-  // Regex to capture: \nOn (Date), (Sender) wrote:\n
-  // We need to be careful with capturing groups to extract info if possible, 
-  // currently just splitting to separate content.
-  // A heuristic approach:
-  // The email body usually looks like:
-  // "New content...\n\nOn Mon, Jan 1, 2024 at 10:00 AM, John Doe <john@example.com> wrote:\n> Old content..."
-
+  
   const threadParts = mail.body.split(/\nOn\s+(.*?)\s+wrote:\n/);
 
-  // threadParts[0] is the latest message content
   latestMessage.content = cleanEmailBody(threadParts[0]);
   messages.push(latestMessage);
 
-  // Subsequent parts come in pairs: [Header Info, Content] due to the capturing group in split
-  // However, `split` with capturing group includes the separator.
-  // "A".split(/(B)/) -> ["A"] if no match, or ["Part1", "B", "Part2"]
-
-  // Let's iterate from index 1
   for (let i = 1; i < threadParts.length; i += 2) {
-    const headerInfo = threadParts[i]; // The "Mon, Jan 1..." part
-    let content = threadParts[i + 1]; // The content part
+    const headerInfo = threadParts[i];
+    let content = threadParts[i + 1];
 
     if (!content) continue;
 
-    // Content will have > at start of lines, remove them
     content = content.replace(/^>\s?/gm, '').trim();
     content = cleanEmailBody(content);
-
-    // Check if this content itself has another "On... wrote:" inside it that wasn't caught?
-    // The regex should catch global matches if used with split? 
-    // String.prototype.split with regex splits on all occurrences.
-    // So threadParts should be flattening the nested structure into a list.
-
-    // Try to extract sender/date from headerInfo
-    // headerInfo is like "Mon, Dec 4, 2023 at 5:00 PM, John Doe <john@example.com>"
-    // or "Mon, Dec 4, 2023 at 5:00 PM, John Doe"
 
     let senderName = "Unknown";
     let senderEmail = "";
     let dateStr = "";
 
-    // Naive extraction
     const emailMatch = headerInfo.match(/<(.*?)>/);
     if (emailMatch) {
       senderEmail = emailMatch[1];
       senderName = headerInfo.substring(headerInfo.lastIndexOf(',', headerInfo.indexOf('<')) + 1, headerInfo.indexOf('<')).trim();
-      // If name is found empty, try separation by comma
       if (!senderName) {
-        // This logic is fragile, but sufficient for visual MVP
         const parts = headerInfo.split(',');
         senderName = parts[parts.length - 1].split('<')[0].trim();
       }
       dateStr = headerInfo.substring(0, headerInfo.indexOf(senderName) || headerInfo.length).trim();
-      // Cleanup trailing comma
       if (dateStr.endsWith(',')) dateStr = dateStr.slice(0, -1);
 
     } else {
-      // No email brackets, maybe just name
       const parts = headerInfo.split(',');
       if (parts.length > 2) {
         senderName = parts[parts.length - 1].trim();
@@ -150,7 +122,7 @@ function parseEmailThread(mail: Mail): ThreadMessage[] {
       id: `${mail.id}-history-${i}`,
       senderName: senderName || "Previous Sender",
       senderEmail: senderEmail,
-      date: new Date(dateStr) || new Date(), // Fallback if parsing fails
+      date: new Date(dateStr) || new Date(),  
       content: content,
       isLatest: false,
       avatarSeed: senderName || senderEmail || `user-${i}`
@@ -207,10 +179,8 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
     if (onBack) onBack();
   };
 
-  // Automatically mark as read when email is opened
   useEffect(() => {
     if (mail && !emailStatus.read) {
-      // Mark as read after a short delay to ensure user actually viewed it
       const timer = setTimeout(() => {
         markAsRead(mail.id);
       }, 1000);
@@ -243,7 +213,6 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
       return;
     }
 
-    // Check CDP authentication for embedded wallet users
     if (user?.authType === 'coinbase-embedded' && !isSignedIn) {
       toast({
         title: "Session Expired",
@@ -444,13 +413,11 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
         {mail.hasCryptoTransfer && (
           <div className="mx-4 mb-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
             {(() => {
-              // Check if this is a direct transfer or claimable transfer
               const isDirectTransfer = mail.body.includes('✅ Assets have been transferred directly');
               const claimCodeMatch = mail.body.match(/Your Claim Code: (\d{3} \d{3})|claim code: (\d{6})/i);
               const claimCode = claimCodeMatch ? (claimCodeMatch[1]?.replace(' ', '') || claimCodeMatch[2]) : '';
 
               if (isDirectTransfer) {
-                // Direct transfer UI
                 return (
                   <div className="flex items-center gap-2">
                     <span className="text-xl">✅</span>
@@ -466,7 +433,6 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
                   </div>
                 );
               } else if (claimCode) {
-                // Claimable transfer UI
                 return (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -486,7 +452,6 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
                   </div>
                 );
               } else {
-                // Fallback for crypto transfers without clear indicators
                 return (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -511,20 +476,9 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
             {(() => {
               const threadMessages = parseEmailThread(mail);
 
-              // Sort chronological: Oldest first
-              // Since we parsed from Latest to Oldest (top down in email body usually implies Latest -> History), 
-              // we probably need to reverse.
-              // Logic check: 
-              // Top of email body = Latest message.
-              // "On composed..." = The message before that.
-              // So threadParts[0] is latest. threadParts[1/2] is previous.
-              // So `messages` array is [Latest, Previous, Pre-previous...]
-              // We want to display: Pre-previous -> Previous -> Latest (Chat style)
-
               const chronologicalMessages = [...threadMessages].reverse();
 
               return chronologicalMessages.map((msg, index) => {
-                // For valid dates?
                 const isValidDate = !isNaN(msg.date.getTime());
                 const dateDisplay = isValidDate ? format(msg.date, "MMM d, yyyy, h:mm a") : "Unknown Date";
 

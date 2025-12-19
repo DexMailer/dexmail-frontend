@@ -14,7 +14,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { ChevronsUpDown } from 'lucide-react';
+import { ChevronsUpDown, Copy, Check } from 'lucide-react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useAccount } from 'wagmi';
 import { useAuth } from '@/contexts/auth-context';
@@ -33,6 +34,15 @@ export function UserNav() {
     : 'No wallet';
 
   const displayEmail = user?.email || 'user@example.com';
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyEmail = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(displayEmail);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <DropdownMenu>
@@ -55,9 +65,20 @@ export function UserNav() {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{walletText}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {displayEmail}
-            </p>
+            <div className="text-xs leading-none text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span className="text-xs leading-none text-muted-foreground">{displayEmail}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-4 w-4 ml-1 hover:bg-transparent"
+                  onClick={handleCopyEmail}
+                >
+                  {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
+                  <span className="sr-only">Copy Email</span>
+                </Button>
+              </div>
+            </div>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

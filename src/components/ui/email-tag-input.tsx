@@ -73,10 +73,7 @@ export function EmailTagInput({
         const trimmedEmail = email.trim();
         if (!trimmedEmail) return;
 
-        // Auto-lowercase @dexmail.app addresses
-        const normalizedEmail = trimmedEmail.toLowerCase().endsWith('@dexmail.app')
-            ? trimmedEmail.toLowerCase()
-            : trimmedEmail;
+        const normalizedEmail = trimmedEmail;
 
         // Prevent duplicates
         if (emails.includes(normalizedEmail)) {

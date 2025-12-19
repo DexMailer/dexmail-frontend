@@ -12,7 +12,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { cn } from "@/lib/utils";
-import { ArrowUp, ArrowDown, Wallet, Loader2 } from "lucide-react";
+import { ArrowUp, ArrowDown, Wallet, Loader2, Copy, Check, Info, CreditCard, Banknote } from "lucide-react";
 import Image from "next/image";
 import { useAccount, useBalance } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
@@ -22,6 +22,8 @@ import { priceService } from "@/lib/price-service";
 import { nftService, NFT } from "@/lib/nft-service";
 import { tokenService } from "@/lib/token-service";
 import { useAuth } from "@/contexts/auth-context";
+import { ReceiveDialog } from "@/components/receive-dialog";
+import { SendDialog } from "@/components/send-dialog";
 
 
 
@@ -109,15 +111,25 @@ export default function ProfilePage() {
   const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
   const { user } = useAuth();
 
-  // Prioritize user.walletAddress for embedded wallets, fall back to wagmi for external wallets
   const address = (user?.walletAddress || wagmiAddress) as `0x${string}` | undefined;
   const isConnected = !!address;
+  const [isReceiveOpen, setIsReceiveOpen] = useState(false);
+  const [isSendOpen, setIsSendOpen] = useState(false);
 
   const { data: balanceData, isLoading: isBalanceLoading } = useBalance({
     address: address,
   });
   const [ethPrice, setEthPrice] = useState<number>(0);
   const [ethImage, setEthImage] = useState<string>("");
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyAddress = () => {
+    if (address) {
+      navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
 
   // Fetch Price & Image
@@ -225,10 +237,16 @@ export default function ProfilePage() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Portfolio</h2>
         <div className="flex items-center space-x-2">
-          <Button>
-            <ArrowUp className="mr-2 h-4 w-4" /> Send
+          {/* <Button variant="outline">
+            <CreditCard className="mr-2 h-4 w-4" /> Buy
           </Button>
           <Button variant="outline">
+            <Banknote className="mr-2 h-4 w-4" /> Sell
+          </Button> */}
+          <Button onClick={() => setIsSendOpen(true)}>
+            <ArrowUp className="mr-2 h-4 w-4" /> Send
+          </Button>
+          <Button variant="outline" onClick={() => setIsReceiveOpen(true)}>
             <ArrowDown className="mr-2 h-4 w-4" /> Receive
           </Button>
         </div>
@@ -249,7 +267,15 @@ export default function ProfilePage() {
         <CardContent>
           <div className="flex items-center text-sm text-primary-foreground/80">
             <Wallet className="mr-2 h-4 w-4" />
-            <span className="font-mono">{address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''}</span>
+            <span className="font-mono mr-2">{address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-primary-foreground/80 hover:text-white hover:bg-white/20"
+              onClick={handleCopyAddress}
+            >
+              {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -291,32 +317,6 @@ export default function ProfilePage() {
                       )}
                     </div>
                   </div>
-
-                  {token.contractAddress !== "0x0000000000000000000000000000000000000000" && (
-                    <div className="absolute top-1/2 -translate-y-1/2 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur-sm p-1 rounded-md shadow-sm">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {
-                        e.stopPropagation(); // Prevent triggering other clicks if we add them later
-                        navigator.clipboard.writeText(token.contractAddress);
-                      }}>
-                        <span className="sr-only">Copy Address</span>
-                        <svg
-                          width="15"
-                          height="15"
-                          viewBox="0 0 15 15"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
-                        >
-                          <path
-                            d="M1 9.50006C1 10.3285 1.67157 11.0001 2.5 11.0001H4L4 10.0001H2.5C2.22386 10.0001 2 9.7762 2 9.50006L2 2.50006C2 2.22392 2.22386 2.00006 2.5 2.00006L9.5 2.00006C9.77614 2.00006 10 2.22392 10 2.50006V4.00006H11V2.50006C11 1.67163 10.3284 1.00006 9.5 1.00006L2.5 1.00006C1.67157 1.00006 1 1.67163 1 2.50006V9.50006ZM5 5.50006C5 4.67163 5.67157 4.00006 6.5 4.00006H12.5C13.3284 4.00006 14 4.67163 14 5.50006V12.5001C14 13.3285 13.3284 14.0001 12.5 14.0001H6.5C5.67157 14.0001 5 13.3285 5 12.5001V5.50006ZM6.5 5.00006C6.22386 5.00006 6 5.22392 6 5.50006V12.5001C6 12.7762 6.22386 13.0001 6.5 13.0001H12.5C12.7761 13.0001 13 12.7762 13 12.5001V5.50006C13 5.22392 12.7761 5.00006 12.5 5.00006H6.5Z"
-                            fill="currentColor"
-                            fillRule="evenodd"
-                            clipRule="evenodd"
-                          ></path>
-                        </svg>
-                      </Button>
-                    </div>
-                  )}
                 </Card>
               ))}
             </div>
@@ -336,6 +336,16 @@ export default function ProfilePage() {
           )}
         </TabsContent>
       </Tabs>
+      <ReceiveDialog open={isReceiveOpen} onOpenChange={setIsReceiveOpen} address={address} />
+      <SendDialog
+        open={isSendOpen}
+        onOpenChange={setIsSendOpen}
+        tokens={allTokens.filter(t => t.id !== 'eth').map(t => ({
+          ...t,
+          contractAddress: t.contractAddress || ''
+        }))}
+        ethBalance={ethBalanceStr}
+      />
     </div>
   );
 }

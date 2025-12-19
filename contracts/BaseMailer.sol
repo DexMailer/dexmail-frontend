@@ -115,6 +115,7 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
         uint256 timestamp;
         bool isExternal;
         bool hasCrypto;
+        bool isSpam;
     }
     
     struct CryptoTransfer {
@@ -158,10 +159,17 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
     // Security: Maximum transfers per email
     mapping(bytes32 => uint256) public transferCount;
     uint256 public maxTransfersPerEmail = 1000;
+
+    // Whitelist and Fees
+    mapping(bytes32 => mapping(bytes32 => bool)) public whitelist; // RecipientHash -> SenderHash -> Allowed
+    mapping(bytes32 => string[]) private _whitelistedEmails; // RecipientHash -> List of allowed emails
+    mapping(bytes32 => uint256) public contactFees; // RecipientHash -> Fee (in wei)
     
     event EmailRegistered(string email, address indexed owner);
-    event MailSent(uint256 indexed mailId, address indexed sender, string recipient, string cid, string originalSender);
+    event MailSent(uint256 indexed mailId, address indexed sender, string recipient, string cid, string originalSender, bool isSpam);
     event CryptoSent(bytes32 indexed emailHash, address indexed token, uint256 amount, address indexed sender);
+    event WhitelistUpdated(bytes32 indexed userEmailHash, bytes32 indexed targetEmailHash, bool status);
+    event ContactFeeUpdated(bytes32 indexed userEmailHash, uint256 fee);
     event WalletCreated(bytes32 indexed emailHash, address walletAddress);
     event WalletClaimed(bytes32 indexed emailHash, address walletAddress, address indexed claimant);
     event RelayerAuthorized(address indexed relayer, bool authorized);
@@ -182,6 +190,8 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
     error InvalidMailId();
     error NFTTransferFailed();
     error NotNFTOwner();
+    error InsufficientFee();
+    error FeeTransferFailed();
     
     modifier onlyRelayer() {
         if (!authorizedRelayers[msg.sender]) revert Unauthorized();
@@ -235,9 +245,12 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
         string calldata originalSender,
         bool isExternal,
         bool hasCrypto
-    ) external whenNotPaused {
+    ) external payable whenNotPaused {
         if (bytes(recipientEmail).length > MAX_EMAIL_LENGTH) revert EmailTooLong();
         
+        string memory senderEmail = addressToEmail[msg.sender];
+        bool isSpam = _checkSpamAndFees(senderEmail, recipientEmail);
+
         uint256 mailId = mails.length;
         
         mails.push(Mail({
@@ -247,12 +260,46 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
             originalSender: originalSender,
             timestamp: block.timestamp,
             isExternal: isExternal,
-            hasCrypto: hasCrypto
+            hasCrypto: hasCrypto,
+            isSpam: isSpam
         }));
         
         inbox[recipientEmail].push(mailId);
         
-        emit MailSent(mailId, msg.sender, recipientEmail, cid, originalSender);
+        emit MailSent(mailId, msg.sender, recipientEmail, cid, originalSender, isSpam);
+    }
+
+    function _checkSpamAndFees(string memory senderEmail, string calldata recipientEmail) private returns (bool) {
+        // If sender is not registered, default to spam
+        if (bytes(senderEmail).length == 0) return true;
+
+        bytes32 recipientHash = keccak256(abi.encodePacked(recipientEmail));
+        
+        // Self-send is never spam
+        if (keccak256(abi.encodePacked(senderEmail)) == recipientHash) return false;
+
+        bytes32 senderHash = keccak256(abi.encodePacked(senderEmail));
+
+        // If whitelisted, not spam
+        if (whitelist[recipientHash][senderHash]) return false;
+
+        // Not whitelisted, check fee
+        uint256 fee = contactFees[recipientHash];
+        
+        if (fee > 0) {
+            if (msg.value < fee) revert InsufficientFee();
+            
+            address recipientWallet = emailOwner[recipientEmail];
+            if (recipientWallet == address(0)) revert InvalidAddress(); 
+
+            (bool success, ) = recipientWallet.call{value: fee}("");
+            if (!success) revert FeeTransferFailed();
+            
+            return false; // Fee paid -> Not Spam
+        }
+
+        // No fee set, not whitelisted -> Spam
+        return true;
     }
     
     function getInbox(string calldata email) external view returns (uint256[] memory) {
@@ -410,12 +457,16 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
             originalSender: "", // Internal mail, no original sender override
             timestamp: block.timestamp,
             isExternal: isExternal,
-            hasCrypto: true
+            hasCrypto: true,
+            isSpam: false // Crypto transfers usually imply trust/value, so not spam? Or should we check whitelist too?
+                          // For sendMailWithCrypto, typically you don't spam with money. Assuming false for now or perform checks.
+                          // User request didn't specify crypto mail behavior, but safe to assume value transfer bypasses spam?
+                          // Let's leave it as false (Not Spam) for now since they are PAYING gas + crypto.
         }));
         
         inbox[recipientEmail].push(mailId);
         
-        emit MailSent(mailId, msg.sender, recipientEmail, cid, "");
+        emit MailSent(mailId, msg.sender, recipientEmail, cid, "", false);
 
         // 2. Send Crypto
         _sendCrypto(recipientEmail, token, amount, isNft);
@@ -656,5 +707,66 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
     
     function getTransferCount(bytes32 emailHash) external view returns (uint256) {
         return transferCount[emailHash];
+    }
+
+    // ============ WHITELIST & FEE MANAGEMENT ============
+
+    function updateWhitelist(string[] calldata emails, bool status) external {
+        string memory userEmail = addressToEmail[msg.sender];
+        if (bytes(userEmail).length == 0) revert Unauthorized();
+        
+        bytes32 userEmailHash = keccak256(abi.encodePacked(userEmail));
+        string[] storage list = _whitelistedEmails[userEmailHash];
+        
+        for (uint256 i = 0; i < emails.length; i++) {
+            string memory targetEmail = emails[i];
+            bytes32 targetEmailHash = keccak256(abi.encodePacked(targetEmail));
+            bool isCurrentlyWhitelisted = whitelist[userEmailHash][targetEmailHash];
+
+            if (status && !isCurrentlyWhitelisted) {
+                // Add to whitelist
+                whitelist[userEmailHash][targetEmailHash] = true;
+                list.push(targetEmail);
+                emit WhitelistUpdated(userEmailHash, targetEmailHash, true);
+            } else if (!status && isCurrentlyWhitelisted) {
+                // Remove from whitelist
+                whitelist[userEmailHash][targetEmailHash] = false;
+                emit WhitelistUpdated(userEmailHash, targetEmailHash, false);
+                
+                // Remove from array (Swap and Pop)
+                for (uint256 j = 0; j < list.length; j++) {
+                    if (keccak256(abi.encodePacked(list[j])) == targetEmailHash) {
+                        list[j] = list[list.length - 1];
+                        list.pop();
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    function setContactFee(uint256 fee) external {
+        string memory userEmail = addressToEmail[msg.sender];
+        if (bytes(userEmail).length == 0) revert Unauthorized();
+        
+        bytes32 userEmailHash = keccak256(abi.encodePacked(userEmail));
+        contactFees[userEmailHash] = fee;
+        emit ContactFeeUpdated(userEmailHash, fee);
+    }
+    
+    function isWhitelisted(string calldata userEmail, string calldata targetSenderEmail) external view returns (bool) {
+        bytes32 userHash = keccak256(abi.encodePacked(userEmail));
+        bytes32 targetHash = keccak256(abi.encodePacked(targetSenderEmail));
+        return whitelist[userHash][targetHash];
+    }
+    
+    function getContactFee(string calldata email) external view returns (uint256) {
+        bytes32 emailHash = keccak256(abi.encodePacked(email));
+        return contactFees[emailHash];
+    }
+
+    function getWhitelistedEmails(string calldata userEmail) external view returns (string[] memory) {
+        bytes32 userEmailHash = keccak256(abi.encodePacked(userEmail));
+        return _whitelistedEmails[userEmailHash];
     }
 }

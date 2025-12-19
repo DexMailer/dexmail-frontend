@@ -103,6 +103,12 @@ body {
   min-height: -webkit-fill-available;
 }
 
+/* Global Selection Style */
+::selection {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
 /* Autofill Override */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,

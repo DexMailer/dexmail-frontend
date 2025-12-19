@@ -112,9 +112,6 @@ export function ComposeDialog({
     // Validate crypto transfers only work with single recipient
     const normalizedRecipients = toEmails.map(email => {
       const trimmed = email.trim();
-      if (trimmed.toLowerCase().endsWith('@dexmail.app')) {
-        return trimmed.toLowerCase();
-      }
       return trimmed;
     });
 

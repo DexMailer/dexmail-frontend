@@ -40,6 +40,7 @@ export interface EmailMessage {
     timestamp: string;
   };
   inReplyTo?: string;
+  isSpam?: boolean;
 }
 
 export interface CryptoTransfer {
