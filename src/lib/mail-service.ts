@@ -45,6 +45,15 @@ export interface DraftEmail {
 
 const EMAIL_STATUS_KEY = 'dexmail_email_status';
 
+export interface FeeInfo {
+  totalFee: bigint;
+  details: {
+    email: string;
+    fee: bigint;
+    requiresFee: boolean;
+  }[];
+}
+
 
 class MailService {
   async sendEmail(
@@ -417,6 +426,59 @@ class MailService {
       claimCode,
       isDirectTransfer
     };
+  };
+
+
+  async getRequiredFees(sender: string, recipients: string[]): Promise<FeeInfo> {
+    const details: { email: string; fee: bigint; requiresFee: boolean }[] = [];
+    let totalFee = BigInt(0);
+
+    // Filter for valid internal recipients only
+    // External emails don't pay fees via this contract usually, or handled differently?
+    // Contract logic usually skips whitelist check for external if passed correctly, 
+    // but here we are checking for "Pay2Contact". Usually only applies to DexMail users.
+    // If recipient is external, we probably don't pay fee to them via contract directly unless registered.
+    // For now, let's assume fees only apply to registered @dexmail.app users.
+
+    const internalRecipients = recipients.filter(r => r.endsWith('@dexmail.app'));
+
+    for (const recipient of internalRecipients) {
+      try {
+        // Check if sender is whitelisted
+        const isWhitelisted = await readContract(wagmiConfig, {
+          address: BASEMAILER_ADDRESS,
+          abi: baseMailerAbi,
+          functionName: 'isWhitelisted',
+          args: [recipient, sender]
+        }) as boolean;
+
+        let fee = BigInt(0);
+        let requiresFee = false;
+
+        if (!isWhitelisted) {
+          fee = await readContract(wagmiConfig, {
+            address: BASEMAILER_ADDRESS,
+            abi: baseMailerAbi,
+            functionName: 'getContactFee',
+            args: [recipient]
+          }) as bigint;
+
+          if (fee > BigInt(0)) {
+            requiresFee = true;
+            totalFee += fee;
+          }
+        }
+
+        if (requiresFee) {
+          details.push({ email: recipient, fee, requiresFee });
+        }
+
+      } catch (error) {
+        console.warn(`[MailService] Failed to check fee for ${recipient}:`, error);
+      }
+    }
+
+    return { totalFee, details };
   }
 
   async validateEmail(email: string): Promise<{ isValid: boolean; exists: boolean; reason?: string }> {
@@ -943,7 +1005,7 @@ class MailService {
   async deleteDraft(id: string, address: string): Promise<void> {
     if (!address) return;
     try {
-      await fetch(`/api/email/drafts?id=${id}&address=${address}`, {
+      await fetch(`/api/email/drafts?id=${id} & address=${address} `, {
         method: 'DELETE'
       });
     } catch (error) {

@@ -13,6 +13,17 @@ import {
   DialogTrigger,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { formatEther } from 'viem';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -51,6 +62,12 @@ export function ComposeDialog({
   const [cryptoEnabled, setCryptoEnabled] = useState(false);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [feeConfirmation, setFeeConfirmation] = useState<{
+    open: boolean;
+    totalFee: bigint;
+    details: { email: string; fee: bigint }[];
+  }>({ open: false, totalFee: BigInt(0), details: [] });
+
   const { toast } = useToast();
   const { user } = useAuth();
   const { saveDraft } = useMail();
@@ -126,9 +143,44 @@ export function ComposeDialog({
 
     setIsLoading(true);
 
+    setIsLoading(true);
+
+    try {
+      // Step 1: Check required fees (Pay2Contact)
+      const feeInfo = await mailService.getRequiredFees(user.email, normalizedRecipients);
+
+      if (feeInfo.totalFee > BigInt(0)) {
+        setIsLoading(false);
+        setFeeConfirmation({
+          open: true,
+          totalFee: feeInfo.totalFee,
+          details: feeInfo.details
+        });
+        return;
+      }
+
+      await executeSend(normalizedRecipients);
+
+    } catch (error) {
+      console.error('Failed to prepare email:', error);
+      toast({
+        title: "Error",
+        description: "Failed to check requirements",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+    }
+  };
+
+  const executeSend = async (recipients: string[]) => {
+    if (!user?.email) return;
+
+    // Re-lock loading state if coming from confirmation
+    if (!isLoading) setIsLoading(true);
+
     try {
       // Validate all @dexmail.app addresses before sending
-      const dexmailAddresses = normalizedRecipients.filter(email =>
+      const dexmailAddresses = recipients.filter(email =>
         email.toLowerCase().endsWith('@dexmail.app')
       );
 
@@ -198,7 +250,7 @@ export function ComposeDialog({
       const result = await mailService.sendEmail(
         {
           from: user.email, // Use authenticated user's email
-          to: normalizedRecipients,
+          to: recipients,
           subject,
           body,
           cryptoTransfer: cryptoEnabled ? {
@@ -232,7 +284,7 @@ export function ComposeDialog({
         });
       } else {
         // Regular email without crypto - show recipient count for bulk sends
-        const recipientCount = normalizedRecipients.length;
+        const recipientCount = recipients.length;
         toast({
           title: "Email Sent!",
           description: recipientCount > 1
@@ -258,6 +310,11 @@ export function ComposeDialog({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleConfirmFee = () => {
+    setFeeConfirmation(prev => ({ ...prev, open: false }));
+    executeSend(toEmails);
   };
 
   return (
@@ -347,6 +404,33 @@ export function ComposeDialog({
             </Button>
           </div>
         </DialogFooter>
+
+        <AlertDialog open={feeConfirmation.open} onOpenChange={(open) => setFeeConfirmation(prev => ({ ...prev, open }))}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Pay2Contact Fee Required</AlertDialogTitle>
+              <AlertDialogDescription>
+                Some recipients require a fee to be contacted because you are not on their whitelist.
+              </AlertDialogDescription>
+              <div className="pt-2">
+                <p className="font-semibold mb-2">Total Fee: {formatEther(feeConfirmation.totalFee)} ETH</p>
+                <div className="text-sm border rounded-md p-2 bg-slate-50 text-slate-900 max-h-32 overflow-y-auto">
+                  {feeConfirmation.details.map((d, i) => (
+                    <div key={i} className="flex justify-between py-1">
+                      <span>{d.email}</span>
+                      <span className="font-mono text-xs">{formatEther(d.fee)} ETH</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setIsLoading(false)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmFee}>Pay & Send</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
       </DialogContent>
     </Dialog>
   );
