@@ -38,12 +38,13 @@ export default function WhitelistSettingsPage() {
     const [isSavingWhitelist, setIsSavingWhitelist] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-    // Fetch current fee
+    // Fetch current fee and validate wallet mapping
     useEffect(() => {
-        async function fetchFee() {
+        async function checkMappingAndFee() {
             if (!user?.email) return;
             setIsLoadingFee(true);
             try {
+                // 1. Get Fee
                 const fee = await readContract(wagmiConfig, {
                     address: BASEMAILER_ADDRESS,
                     abi: baseMailerAbi,
@@ -52,14 +53,58 @@ export default function WhitelistSettingsPage() {
                 }) as bigint;
 
                 setContactFee(formatEther(fee));
+
+                // 2. Validate Wallet Mapping
+                let currentAddress;
+                if (user?.authType === 'coinbase-embedded' && currentUser?.evmSmartAccounts?.[0]) {
+                    currentAddress = currentUser.evmSmartAccounts[0];
+                } else {
+                    const { getAccount } = await import('@wagmi/core');
+                    const account = getAccount(wagmiConfig);
+                    currentAddress = account.address;
+                }
+
+                if (currentAddress) {
+                    const mappedEmail = await readContract(wagmiConfig, {
+                        address: BASEMAILER_ADDRESS,
+                        abi: baseMailerAbi,
+                        functionName: 'addressToEmail',
+                        args: [currentAddress]
+                    }) as string;
+
+                    const ownerOfEmail = await readContract(wagmiConfig, {
+                        address: BASEMAILER_ADDRESS,
+                        abi: baseMailerAbi,
+                        functionName: 'emailOwner',
+                        args: [user.email]
+                    }) as string;
+
+                    console.log('[Whitelist] Wallet Diagnostics:', {
+                        userEmail: user.email,
+                        currentAddress,
+                        mappedEmailFromContract: mappedEmail,
+                        ownerOfEmailInContract: ownerOfEmail,
+                        match: mappedEmail === user.email
+                    });
+
+                    if (mappedEmail !== user.email) {
+                        toast({
+                            title: "Wallet Mismatch",
+                            description: `Current wallet is not registered owner of ${user.email}. Registered owner: ${ownerOfEmail?.slice(0, 6)}...`,
+                            variant: "destructive",
+                            duration: 10000
+                        });
+                    }
+                }
+
             } catch (error) {
-                console.error('Error fetching contact fee:', error);
+                console.error('[Whitelist] Error fetching diagnostics/fee:', error);
             } finally {
                 setIsLoadingFee(false);
             }
         }
-        fetchFee();
-    }, [user?.email]);
+        checkMappingAndFee();
+    }, [user?.email, currentUser, user?.authType]);
 
     const handleUpdateWhitelist = async (status: boolean) => {
         if (emailsToAdd.length === 0) {
@@ -71,6 +116,8 @@ export default function WhitelistSettingsPage() {
             return;
         }
 
+        console.log('[Whitelist] Updating whitelist with:', { emailsToAdd, status });
+
         setIsSavingWhitelist(true);
         try {
             let hash;
@@ -81,11 +128,15 @@ export default function WhitelistSettingsPage() {
                 const smartAccount = currentUser?.evmSmartAccounts?.[0];
                 if (!smartAccount) throw new Error("Smart account not found");
 
+                console.log('[Whitelist] Using embedded wallet:', smartAccount);
+
                 const callData = encodeFunctionData({
                     abi: baseMailerAbi,
                     functionName: 'updateWhitelist',
                     args: [emailsToAdd, status]
                 });
+
+                console.log('[Whitelist] Encoded call data:', callData);
 
                 const result = await sendUserOperation({
                     evmSmartAccount: smartAccount,
@@ -98,6 +149,7 @@ export default function WhitelistSettingsPage() {
                     useCdpPaymaster: true
                 });
                 hash = result.userOperationHash;
+                console.log('[Whitelist] UserOp submitted:', hash);
             } else {
                 hash = await writeContract(wagmiConfig, {
                     address: BASEMAILER_ADDRESS,
@@ -105,6 +157,7 @@ export default function WhitelistSettingsPage() {
                     functionName: 'updateWhitelist',
                     args: [emailsToAdd, status]
                 });
+                console.log('[Whitelist] Transaction submitted:', hash);
             }
 
             toast({
@@ -112,8 +165,14 @@ export default function WhitelistSettingsPage() {
                 description: "Updating whitelist...",
             });
 
-            if (hash.startsWith('0x')) {
-              
+            if (hash.startsWith('0x') && user?.authType !== 'coinbase-embedded') {
+                // For standard wallets, wait for receipt
+                try {
+                    await waitForTransactionReceipt(wagmiConfig, { hash: hash as `0x${string}` });
+                    console.log('[Whitelist] Transaction confirmed');
+                } catch (e) {
+                    console.warn('[Whitelist] Wait for receipt failed', e);
+                }
             }
 
             toast({
@@ -124,18 +183,41 @@ export default function WhitelistSettingsPage() {
             setEmailsToAdd([]);
             // Trigger refresh in WhitelistDisplay component
             setRefreshTrigger(prev => prev + 1);
-            
-            // Also add a small delay and refresh for embedded wallets
-            if (user?.authType === 'coinbase-embedded') {
-                setTimeout(() => setRefreshTrigger(prev => prev + 1), 2000);
-            }
+
+            // For embedded wallets (and generally to be safe), trigger multiple refreshes
+            // to catch the update as soon as the block is indexed.
+            setTimeout(() => {
+                console.log('[Whitelist] Refreshing list (attempt 1)');
+                setRefreshTrigger(prev => prev + 1);
+            }, 2000);
+
+            setTimeout(() => {
+                console.log('[Whitelist] Refreshing list (attempt 2)');
+                setRefreshTrigger(prev => prev + 1);
+            }, 5000);
+
+            setTimeout(() => {
+                console.log('[Whitelist] Refreshing list (attempt 3)');
+                setRefreshTrigger(prev => prev + 1);
+            }, 10000);
         } catch (error: any) {
-            console.error('Error updating whitelist:', error);
-            toast({
-                title: "Error",
-                description: error.message || "Failed to update whitelist",
-                variant: "destructive"
-            });
+            console.error('[Whitelist] Error updating whitelist:', error);
+            // Check for specific revert reasons safely
+            const message = error.message || "Failed to update whitelist";
+
+            if (message.includes('Unauthorized') || message.includes('0x82b42900')) {
+                toast({
+                    title: "Authorization Error",
+                    description: "Your wallet is not authorized. Are you registered?",
+                    variant: "destructive"
+                });
+            } else {
+                toast({
+                    title: "Error",
+                    description: message,
+                    variant: "destructive"
+                });
+            }
         } finally {
             setIsSavingWhitelist(false);
         }

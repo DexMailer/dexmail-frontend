@@ -31,6 +31,7 @@ export function WhitelistDisplay({ refreshTrigger }: { refreshTrigger?: number }
 
     const fetchWhitelist = async () => {
         if (!user?.email) return;
+        console.log('[WhitelistDisplay] Fetching whitelist for:', user.email);
         setIsLoading(true);
         try {
             const list = await readContract(wagmiConfig, {
@@ -39,9 +40,10 @@ export function WhitelistDisplay({ refreshTrigger }: { refreshTrigger?: number }
                 functionName: 'getWhitelistedEmails',
                 args: [user.email]
             }) as string[];
+            console.log('[WhitelistDisplay] Fetched whitelist:', list);
             setWhitelist(list || []);
         } catch (error) {
-            console.error('Error fetching whitelist:', error);
+            console.error('[WhitelistDisplay] Error fetching whitelist:', error);
         } finally {
             setIsLoading(false);
         }
