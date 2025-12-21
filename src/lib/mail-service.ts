@@ -1005,7 +1005,7 @@ class MailService {
   async deleteDraft(id: string, address: string): Promise<void> {
     if (!address) return;
     try {
-      await fetch(`/api/email/drafts?id=${id} & address=${address} `, {
+      await fetch(`/api/email/drafts?id=${id}&address=${address}`, {
         method: 'DELETE'
       });
     } catch (error) {
