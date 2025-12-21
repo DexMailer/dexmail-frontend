@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import EmailStatus from '@/lib/models/EmailStatus';
+import { isValidEmailIdentifier } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
     try {
@@ -9,6 +10,10 @@ export async function GET(request: NextRequest) {
 
         if (!address) {
             return NextResponse.json({ error: 'Address is required' }, { status: 400 });
+        }
+
+        if (!isValidEmailIdentifier(address)) {
+            return NextResponse.json({ error: 'Invalid address or email' }, { status: 400 });
         }
 
         await connectDB();
@@ -43,6 +48,10 @@ export async function POST(request: NextRequest) {
 
         if (!messageId || !status || !address) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        }
+
+        if (!isValidEmailIdentifier(address)) {
+            return NextResponse.json({ error: 'Invalid address or email' }, { status: 400 });
         }
 
         await connectDB();

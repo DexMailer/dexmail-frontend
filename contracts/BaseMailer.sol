@@ -266,6 +266,17 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
         
         inbox[recipientEmail].push(mailId);
         
+        // Auto-whitelist logic: When sending mail to someone, automatically whitelist them
+        // so they can reply without paying fees.
+        bytes32 senderHash = keccak256(abi.encodePacked(senderEmail));
+        bytes32 recipientHash = keccak256(abi.encodePacked(recipientEmail));
+
+        if (!whitelist[senderHash][recipientHash]) {
+            whitelist[senderHash][recipientHash] = true;
+            _whitelistedEmails[senderHash].push(recipientEmail);
+            emit WhitelistUpdated(senderHash, recipientHash, true);
+        }
+        
         emit MailSent(mailId, msg.sender, recipientEmail, cid, originalSender, isSpam);
     }
 

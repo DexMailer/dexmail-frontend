@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPlaceholderImage } from '@/lib/placeholder';
+import { isValidEthereumAddress } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
@@ -9,13 +10,18 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Wallet address is required' }, { status: 400 });
     }
 
+    if (!isValidEthereumAddress(walletAddress)) {
+        return NextResponse.json({ error: 'Invalid wallet address' }, { status: 400 });
+    }
+
     try {
         console.log('[API] Fetching NFTs for:', walletAddress);
 
         // Alchemy API for Base Sepolia
         const apiKey = process.env.ALCHEMY_API_KEY || 'demo'; // Fallback to demo or empty
         const baseURL = `https://base-sepolia.g.alchemy.com/nft/v3/${apiKey}/getNFTsForOwner`;
-        const url = `${baseURL}?owner=${walletAddress}&withMetadata=true`;
+        // encodeURIComponent is good practice even with pre-validation
+        const url = `${baseURL}?owner=${encodeURIComponent(walletAddress)}&withMetadata=true`;
 
         const response = await fetch(url, {
             headers: {

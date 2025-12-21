@@ -34,6 +34,7 @@ const UserSchema = new Schema<IUser>({
         type: String,
         sparse: true,
         lowercase: true,
+        unique: true,
     },
     emailVerified: {
         type: Boolean,

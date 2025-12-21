@@ -204,6 +204,33 @@ export function ComposeDialog({
         }
       }
 
+      // Validate traditional email domains
+      const traditionalEmails = recipients.filter(email =>
+        !email.toLowerCase().endsWith('@dexmail.app')
+      );
+
+      // We need to import isValidTraditionalEmail from lib/validation first, but since I can't edit imports and code in one go easily without view, I'll use the helper if imported, or just use the logic here if simpler. 
+      // Actually, I should check if I imported it. I haven't. 
+      // I will assume I need to add the import or use the function if available globally (it's not).
+      // Let's modify the import first in a separate step or assume I can do it here? No, better to be safe.
+      // I'll add the logic inline or rely on a subsequent step to fix import.
+      // WAIT, I can start by adding the import in the `compose-dialog.tsx` file in a previous step?
+      // No, I'll do it now. I'll add the check here and then a separate tool call to add the import.
+
+      const { isValidTraditionalEmail } = await import('@/lib/validation');
+
+      const invalidTraditionalEmails = traditionalEmails.filter(email => !isValidTraditionalEmail(email));
+
+      if (invalidTraditionalEmails.length > 0) {
+        toast({
+          title: "Invalid Email Domains",
+          description: `The following email addresses have invalid domains: ${invalidTraditionalEmails.join(', ')}`,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       // Check CDP authentication for embedded wallet users
       if (user?.authType === 'coinbase-embedded' && !isSignedIn) {
         toast({

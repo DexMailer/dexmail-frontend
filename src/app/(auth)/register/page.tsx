@@ -105,6 +105,15 @@ export default function RegisterPage() {
     try {
       setError('');
 
+      // Check if wallet is already registered
+      const checkRes = await fetch(`/api/auth/check-wallet?address=${address}`);
+      const checkData = await checkRes.json();
+
+      if (checkData.exists) {
+        setError('This wallet is already registered. Please sign in instead.');
+        return;
+      }
+
       // Use the wallet hook's registerWithWallet which handles signature
       await registerWithWallet(constructedEmail);
 

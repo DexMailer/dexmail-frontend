@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPlaceholderImage } from '@/lib/placeholder';
+import { isValidEthereumAddress } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
@@ -7,6 +8,10 @@ export async function GET(request: NextRequest) {
 
     if (!walletAddress) {
         return NextResponse.json({ error: 'Wallet address is required' }, { status: 400 });
+    }
+
+    if (!isValidEthereumAddress(walletAddress)) {
+        return NextResponse.json({ error: 'Invalid wallet address' }, { status: 400 });
     }
 
     try {

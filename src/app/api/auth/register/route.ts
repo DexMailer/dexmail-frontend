@@ -43,6 +43,17 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Check if wallet address is already taken (if provided)
+        if (walletAddress) {
+            const existingWalletUser = await User.findOne({ walletAddress: walletAddress.toLowerCase() });
+            if (existingWalletUser) {
+                return NextResponse.json(
+                    { error: 'This wallet address is already registered' },
+                    { status: 400 }
+                );
+            }
+        }
+
         // Create new user
         const userData: any = {
             email: email.toLowerCase(),
@@ -90,6 +101,12 @@ export async function POST(request: NextRequest) {
         console.error('Registration error:', error);
 
         if (error.code === 11000) {
+            if (Object.keys(error.keyPattern).includes('walletAddress')) {
+                return NextResponse.json(
+                    { error: 'This wallet address is already registered' },
+                    { status: 400 }
+                );
+            }
             return NextResponse.json(
                 { error: 'User already exists' },
                 { status: 400 }

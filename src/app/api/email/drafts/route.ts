@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Draft from '@/lib/models/Draft';
+import { isValidEmailIdentifier, sanitizeInput } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
     try {
@@ -9,6 +10,10 @@ export async function GET(request: NextRequest) {
 
         if (!address) {
             return NextResponse.json({ error: 'Address is required' }, { status: 400 });
+        }
+
+        if (!isValidEmailIdentifier(address)) {
+            return NextResponse.json({ error: 'Invalid address or email' }, { status: 400 });
         }
 
         await connectDB();
@@ -29,6 +34,13 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Address is required' }, { status: 400 });
         }
 
+        if (!isValidEmailIdentifier(address)) {
+            return NextResponse.json({ error: 'Invalid address or email' }, { status: 400 });
+        }
+
+        // Sanitize subject if present
+        const safeSubject = subject ? sanitizeInput(subject) : subject;
+
         await connectDB();
 
         // Upsert draft
@@ -38,7 +50,7 @@ export async function POST(request: NextRequest) {
                 draftId: id,
                 address,
                 to,
-                subject,
+                subject: safeSubject,
                 body: emailBody,
                 timestamp
             },
@@ -60,6 +72,10 @@ export async function DELETE(request: NextRequest) {
 
         if (!id || !address) {
             return NextResponse.json({ error: 'Draft ID and Address are required' }, { status: 400 });
+        }
+
+        if (!isValidEmailIdentifier(address)) {
+            return NextResponse.json({ error: 'Invalid address or email' }, { status: 400 });
         }
 
         await connectDB();
