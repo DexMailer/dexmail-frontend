@@ -3,7 +3,7 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,16 +68,7 @@ export default function RegisterPage() {
     try {
       setError('');
       await connectWallet();
-
-      // Once connected, fetch basename
-      if (address) {
-        const fetchedBasename = await fetchBasename(address);
-        if (fetchedBasename) {
-          const emailAddress = generateEmailFromBasename(fetchedBasename);
-          setGeneratedEmail(emailAddress);
-          setEmail(fetchedBasename); // Set as default but allow editing
-        }
-      }
+      // Basename will be fetched automatically by the hook and handled by the useEffect below
     } catch (error) {
       setError('Failed to connect wallet or fetch basename');
       toast({
@@ -87,6 +78,18 @@ export default function RegisterPage() {
       });
     }
   };
+
+  // Reactively handle basename updates
+  useEffect(() => {
+    if (basename && address) {
+      const emailAddress = generateEmailFromBasename(basename);
+      setGeneratedEmail(emailAddress);
+      // Only set email if it hasn't been modified by user or if it's empty
+      if (!email || email === '') {
+        setEmail(basename);
+      }
+    }
+  }, [basename, address, generateEmailFromBasename]);
 
   const handleWalletRegistration = async () => {
     if (!email.trim()) {

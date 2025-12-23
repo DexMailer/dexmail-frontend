@@ -7,7 +7,6 @@ import { WagmiProvider } from 'wagmi';
 import { wagmiConfig } from '@/lib/wagmi-config';
 import '@rainbow-me/rainbowkit/styles.css';
 
-// Create QueryClient outside component to prevent recreation on every render
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

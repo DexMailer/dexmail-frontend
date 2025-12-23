@@ -78,7 +78,7 @@ function parseEmailThread(mail: Mail): ThreadMessage[] {
     avatarSeed: mail.name || mail.email
   };
 
-  
+
   const threadParts = mail.body.split(/\nOn\s+(.*?)\s+wrote:\n/);
 
   latestMessage.content = cleanEmailBody(threadParts[0]);
@@ -122,7 +122,7 @@ function parseEmailThread(mail: Mail): ThreadMessage[] {
       id: `${mail.id}-history-${i}`,
       senderName: senderName || "Previous Sender",
       senderEmail: senderEmail,
-      date: new Date(dateStr) || new Date(),  
+      date: new Date(dateStr) || new Date(),
       content: content,
       isLatest: false,
       avatarSeed: senderName || senderEmail || `user-${i}`
@@ -234,7 +234,7 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
 
         const result = await sendUserOperation({
           evmSmartAccount: smartAccount,
-          network: "base-sepolia",
+          network: "base",
           calls: [{
             to: args.to as `0x${string}`,
             data: args.data as `0x${string}`,

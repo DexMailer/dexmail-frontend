@@ -1,6 +1,6 @@
 import { createPublicClient, createWalletClient, http, parseAbiItem, stringToHex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { baseSepolia } from 'viem/chains';
+import { base } from 'viem/chains';
 import { config } from 'dotenv';
 import { baseMailerAbi } from '../../contracts/abi';
 
@@ -15,7 +15,7 @@ const RELAYER_PRIVATE_KEY = process.env.RELAYER_PRIVATE_KEY as `0x${string}`;
 
 // Viem Clients
 export const publicClient = createPublicClient({
-    chain: baseSepolia,
+    chain: base,
     transport: http()
 });
 
@@ -23,7 +23,7 @@ const account = RELAYER_PRIVATE_KEY ? privateKeyToAccount(RELAYER_PRIVATE_KEY) :
 
 export const walletClient = account ? createWalletClient({
     account,
-    chain: baseSepolia,
+    chain: base,
     transport: http()
 }) : undefined;
 

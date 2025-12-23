@@ -143,7 +143,7 @@ export function SendDialog({ open, onOpenChange, tokens, ethBalance }: SendDialo
 
                 const result = await sendUserOperation({
                     evmSmartAccount: smartAccount,
-                    network: "base-sepolia",
+                    network: "base",
                     calls: [{
                         to: callTo,
                         data: callData as `0x${string}`,

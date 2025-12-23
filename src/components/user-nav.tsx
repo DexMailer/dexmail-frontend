@@ -19,6 +19,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useAccount } from 'wagmi';
 import { useAuth } from '@/contexts/auth-context';
+import { useName } from '@coinbase/onchainkit/identity';
+import { base } from 'viem/chains';
 
 export function UserNav() {
   const userAvatar = PlaceHolderImages.find(img => img.id === 'user-avatar-1');
@@ -29,9 +31,12 @@ export function UserNav() {
   // For embedded wallets, use the wallet address from user profile
   // For external wallets, use the connected address from wagmi
   const displayAddress = user?.walletAddress || address;
-  const walletText = displayAddress
+
+  const { data: name } = useName({ address: displayAddress as `0x${string}`, chain: base });
+
+  const walletText = name || (displayAddress
     ? `${displayAddress.slice(0, 6)}...${displayAddress.slice(-4)}`
-    : 'No wallet';
+    : 'No wallet');
 
   const displayEmail = user?.email || 'user@example.com';
   const [copied, setCopied] = useState(false);

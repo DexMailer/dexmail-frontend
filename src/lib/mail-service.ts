@@ -746,7 +746,7 @@ class MailService {
       const currentBlock = await publicClient.getBlockNumber();
       // Optimization: We could store lastFetchedBlock in cache too, but for now just fetch logs
       // and filter by what we already have in cache.
-      const fromBlock = currentBlock > BigInt(50000) ? currentBlock - BigInt(50000) : BigInt(0);
+      const fromBlock = currentBlock > BigInt(3000) ? currentBlock - BigInt(3000) : BigInt(0);
 
       const logs = await publicClient.getLogs({
         address: BASEMAILER_ADDRESS,

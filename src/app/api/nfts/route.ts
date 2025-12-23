@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
         // Alchemy API for Base Sepolia
         const apiKey = process.env.ALCHEMY_API_KEY || 'demo'; // Fallback to demo or empty
-        const baseURL = `https://base-sepolia.g.alchemy.com/nft/v3/${apiKey}/getNFTsForOwner`;
+        const baseURL = `https://base-mainnet.g.alchemy.com/nft/v3/${apiKey}/getNFTsForOwner`;
         // encodeURIComponent is good practice even with pre-validation
         const url = `${baseURL}?owner=${encodeURIComponent(walletAddress)}&withMetadata=true`;
 

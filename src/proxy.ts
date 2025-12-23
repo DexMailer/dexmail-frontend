@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { rateLimit } from '@/lib/rate-limit';
+import { rateLimit, generateFingerprint } from '@/lib/rate-limit';
 
 const limiter = rateLimit({
     interval: 60 * 1000, // 1 minute
-    uniqueTokenPerInterval: 500, // Max 500 users per second
+    uniqueTokenPerInterval: 500, // Max 500 unique clients tracked
+    // Botnet protection
+    enableFingerprinting: true,
+    enableExponentialBackoff: true,
+    enableGlobalLimit: true,
+    globalLimit: 5000, // Max 5000 requests per minute globally
+    maxViolations: 5, // Ban after 5 violations
+    banDuration: 15 * 60 * 1000, // 15 minute ban
 });
 
 export async function proxy(request: NextRequest) {
@@ -11,23 +18,77 @@ export async function proxy(request: NextRequest) {
 
     // specific logic for API routes
     if (request.nextUrl.pathname.startsWith('/api')) {
-        // Rate Limiting
-        const ip = request.headers.get('x-forwarded-for') ?? '127.0.0.1';
-        const { isRateLimited, limit, remaining } = await limiter.check(20, ip); // 20 requests per minute
+        // Extract client identifiers
+        const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() 
+            ?? request.headers.get('x-real-ip') 
+            ?? '127.0.0.1';
+        
+        // Generate fingerprint from request headers
+        const fingerprint = generateFingerprint({
+            userAgent: request.headers.get('user-agent'),
+            acceptLanguage: request.headers.get('accept-language'),
+            acceptEncoding: request.headers.get('accept-encoding'),
+            accept: request.headers.get('accept'),
+            connection: request.headers.get('connection'),
+            cacheControl: request.headers.get('cache-control'),
+        });
+
+        // Perform rate limit check with fingerprinting
+        const { 
+            isRateLimited, 
+            limit, 
+            remaining, 
+            isBanned, 
+            banExpiresIn, 
+            suspicionScore,
+            reason 
+        } = await limiter.check(20, ip, fingerprint);
+
+        // Set rate limit headers
+        response.headers.set('X-RateLimit-Limit', limit.toString());
+        response.headers.set('X-RateLimit-Remaining', remaining.toString());
+
+        if (isBanned) {
+            const retryAfter = Math.ceil((banExpiresIn || 900000) / 1000);
+            return new NextResponse(JSON.stringify({ 
+                error: 'Access Temporarily Blocked',
+                reason: 'Too many violations detected',
+                retryAfter,
+            }), {
+                status: 403,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-RateLimit-Limit': limit.toString(),
+                    'X-RateLimit-Remaining': '0',
+                    'Retry-After': retryAfter.toString(),
+                },
+            });
+        }
 
         if (isRateLimited) {
-            return new NextResponse(JSON.stringify({ error: 'Too Many Requests' }), {
+            // Delay response for suspicious clients (tarpit)
+            if (suspicionScore > 50) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+
+            return new NextResponse(JSON.stringify({ 
+                error: 'Too Many Requests',
+                retryAfter: 60,
+            }), {
                 status: 429,
                 headers: {
                     'Content-Type': 'application/json',
                     'X-RateLimit-Limit': limit.toString(),
                     'X-RateLimit-Remaining': '0',
+                    'Retry-After': '60',
                 },
             });
         }
 
-        response.headers.set('X-RateLimit-Limit', limit.toString());
-        response.headers.set('X-RateLimit-Remaining', remaining.toString());
+        // Add suspicion indicator header for monitoring
+        if (suspicionScore > 25) {
+            response.headers.set('X-Suspicion-Level', suspicionScore > 50 ? 'high' : 'medium');
+        }
     }
 
     // Security Headers
