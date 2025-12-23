@@ -9,7 +9,7 @@ const alchemyApiKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
 
 // Use environment variable or fallback to production URL
 // This ensures consistency between SSR and client-side
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://dexmail.app';
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.dexmail.app';
 
 export const wagmiConfig = getDefaultConfig({
   appName: 'DexMail',
