@@ -9,6 +9,7 @@ export interface RegisterData {
   authType: 'wallet' | 'coinbase-embedded';
   walletAddress?: string;
   signature?: string;
+  message?: string;
 }
 
 export interface LoginData {
@@ -16,6 +17,8 @@ export interface LoginData {
   password?: string;
   signature?: string;
   authType: 'wallet' | 'coinbase-embedded';
+  message?: string;
+  walletAddress?: string;
 }
 
 export interface ChallengeResponse {
@@ -121,6 +124,7 @@ class AuthService {
             authType: 'wallet',
             walletAddress: data.walletAddress,
             signature: data.signature,
+            message: data.message,
           }),
         });
 
@@ -157,14 +161,19 @@ class AuthService {
       }
       // For embedded wallets, we don't have a signature yet, so we'll use the wallet address
       // The backend should handle embedded wallet login differently
-      return this.loginWithWallet(data.email, data.signature || '', data.signature || '');
+      return this.loginWithWallet(
+        data.email,
+        data.walletAddress || '',
+        data.message || '',
+        data.signature || ''
+      );
     }
 
     console.error('[AuthService] Invalid login data - no valid auth type');
     throw new Error('Invalid login data');
   }
 
-  async loginWithWallet(email: string, walletAddress: string, signature: string): Promise<AuthResponse> {
+  async loginWithWallet(email: string, walletAddress: string, message: string, signature: string): Promise<AuthResponse> {
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
     console.log('[AuthService] loginWithWallet called with:', { email, walletAddress, hasSignature: !!signature });
@@ -178,6 +187,7 @@ class AuthService {
         },
         body: JSON.stringify({
           email,
+          message,
           signature,
           authType: 'wallet',
         }),

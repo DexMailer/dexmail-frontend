@@ -27,9 +27,6 @@ export function UserNav() {
   const { address } = useAccount();
   const { user } = useAuth();
 
-  // Slice wallet address to show first 6 and last 4 characters
-  // For embedded wallets, use the wallet address from user profile
-  // For external wallets, use the connected address from wagmi
   const displayAddress = user?.walletAddress || address;
 
   const { data: name } = useName({ address: displayAddress as `0x${string}`, chain: base });

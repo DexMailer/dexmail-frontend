@@ -4,8 +4,10 @@ import { useAccount, useConnect, useDisconnect, useSignMessage } from 'wagmi';
 import { useCallback, useState } from 'react';
 import { authService } from '@/lib/auth-service';
 
+import { SiweMessage } from 'siwe';
+
 export function useWallet() {
-  const { address, isConnected, status } = useAccount();
+  const { address, isConnected, status, chain } = useAccount();
   const { connect, connectors, isPending: isConnecting } = useConnect();
   const { disconnect } = useDisconnect();
   const { signMessageAsync, isPending: isSigning } = useSignMessage();
@@ -56,17 +58,29 @@ export function useWallet() {
       // Get challenge from backend
       const challenge = await authService.getChallenge(email);
 
-      // Sign the challenge
-      const signature = await signMessage(challenge.nonce);
+      // Create SIWE message
+      const domain = process.env.NEXT_PUBLIC_DOMAIN || window.location.host;
+      const message = new SiweMessage({
+        domain,
+        address,
+        statement: 'Sign in to DexMail to access your decentralized inbox.',
+        uri: window.location.origin,
+        version: '1',
+        chainId: chain?.id || 1,
+        nonce: challenge.nonce,
+      });
+
+      const preparedMessage = message.prepareMessage();
+      const signature = await signMessage(preparedMessage);
 
       // Login with signature using the new method
-      const authResponse = await authService.loginWithWallet(email, address, signature);
+      const authResponse = await authService.loginWithWallet(email, address, preparedMessage, signature);
 
       return authResponse;
     } finally {
       setIsAuthenticating(false);
     }
-  }, [address, signMessage]);
+  }, [address, chain?.id, signMessage]);
 
   const registerWithWallet = useCallback(async (email: string) => {
     if (!address) {
@@ -77,7 +91,21 @@ export function useWallet() {
     try {
       // Get challenge and sign it
       const challenge = await authService.getChallenge(email);
-      const signature = await signMessage(challenge.nonce);
+
+      // Create SIWE message
+      const domain = process.env.NEXT_PUBLIC_DOMAIN || window.location.host;
+      const message = new SiweMessage({
+        domain,
+        address,
+        statement: 'Sign in to DexMail to access your decentralized inbox.',
+        uri: window.location.origin,
+        version: '1',
+        chainId: chain?.id || 1,
+        nonce: challenge.nonce,
+      });
+
+      const preparedMessage = message.prepareMessage();
+      const signature = await signMessage(preparedMessage);
 
       // Register with wallet
       const authResponse = await authService.register({
@@ -85,13 +113,14 @@ export function useWallet() {
         authType: 'wallet',
         walletAddress: address,
         signature,
+        message: preparedMessage,
       });
 
       return authResponse;
     } finally {
       setIsAuthenticating(false);
     }
-  }, [address, signMessage]);
+  }, [address, chain?.id, signMessage]);
 
   return {
     address,

@@ -36,11 +36,37 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (authType === 'wallet' && !walletAddress) {
-            return NextResponse.json(
-                { error: 'Wallet address is required for wallet registration' },
-                { status: 400 }
-            );
+        if (authType === 'wallet') {
+            const { message, signature } = body;
+
+            if (!walletAddress || !message || !signature) {
+                return NextResponse.json(
+                    { error: 'Wallet address, message, and signature are required for wallet registration' },
+                    { status: 400 }
+                );
+            }
+
+            try {
+                const { SiweMessage } = await import('siwe');
+                const siweMessage = new SiweMessage(message);
+
+                // Verify the signature
+                const fields = await siweMessage.verify({ signature });
+                const recoveredAddress = fields.data.address;
+
+                if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+                    return NextResponse.json(
+                        { error: 'Signature does not match provided wallet address' },
+                        { status: 400 }
+                    );
+                }
+            } catch (e) {
+                console.error('SIWE Verification failed:', e);
+                return NextResponse.json(
+                    { error: 'Invalid signature for registration' },
+                    { status: 400 }
+                );
+            }
         }
 
         // Check if wallet address is already taken (if provided)

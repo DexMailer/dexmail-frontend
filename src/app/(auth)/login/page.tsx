@@ -16,6 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { authService } from "@/lib/auth-service";
 
 import { useEvmAddress, useIsSignedIn, useSignInWithEmail, useVerifyEmailOTP, useSignOut } from "@coinbase/cdp-hooks";
+import { SiweMessage } from 'siwe';
+import { useAccount } from 'wagmi';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,6 +40,7 @@ export default function LoginPage() {
   } = useWallet();
 
   const [useWalletAuth, setUseWalletAuth] = useState(false);
+  const { chain } = useAccount();
   const [email, setEmail] = useState('');
   const [authComplete, setAuthComplete] = useState(false);
   const [error, setError] = useState('');
@@ -95,6 +98,10 @@ export default function LoginPage() {
     }
   };
 
+
+
+  // ... existing code ...
+
   const handleWalletAuth = async () => {
     if (!email.trim()) {
       setError('Please enter your email address');
@@ -109,15 +116,28 @@ export default function LoginPage() {
     try {
       setError('');
 
-      const domain = process.env.NEXT_PUBLIC_DOMAIN || 'dexmail.app';
-      const fullEmail = email.includes('@') ? email : `${email}@${domain}`;
+      const domain = process.env.NEXT_PUBLIC_DOMAIN || window.location.host;
+      const fullEmail = email.includes('@') ? email : `${email}@dexmail.app`; // using hardcoded dexmail.app as fallback if env not set for consistency with regex below
 
       console.log('[Login] Authenticating with:', fullEmail);
 
       const challenge = await authService.getChallenge(fullEmail);
 
-      const signature = await signMessage(challenge.nonce);
-      await loginWithWallet(fullEmail, address, signature);
+      // Create SIWE message
+      const message = new SiweMessage({
+        domain,
+        address,
+        statement: 'Sign in to DexMail to access your decentralized inbox.',
+        uri: window.location.origin,
+        version: '1',
+        chainId: chain?.id || 1, // Fallback to 1 if chain not found, usually should be correct
+        nonce: challenge.nonce,
+      });
+
+      const preparedMessage = message.prepareMessage();
+      const signature = await signMessage(preparedMessage);
+
+      await loginWithWallet(fullEmail, address, preparedMessage, signature);
 
       setAuthComplete(true);
 
@@ -130,6 +150,7 @@ export default function LoginPage() {
         router.push('/dashboard');
       }, 1500);
     } catch (error) {
+      console.error('Login error', error);
       const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
       setError(errorMessage);
       toast({

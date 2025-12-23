@@ -331,7 +331,8 @@ export function MailComponent({
     setIsNavigating(true);
     try {
       console.log('Fetching missing mail:', mailId);
-      const message = await mailService.getMessage(mailId, user.email);
+      const realId = mailId.replace('_sent_copy', '');
+      const message = await mailService.getMessage(realId, user.email);
 
       if (message) {
         // Convert EmailMessage to Mail

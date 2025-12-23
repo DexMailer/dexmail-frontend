@@ -96,9 +96,14 @@ export function MailProvider({ children }: { children: ReactNode }) {
                 const cleanedBody = cleanBody(m.body);
                 const status = mailService.getEmailStatus(m.messageId);
 
+                // Check if self-sent (recipient matches user email)
+                // If so, we append a suffix to the ID so it doesn't get deduplicated out by the inbox version
+                const isSelfSent = m.to.some(recipient => recipient.toLowerCase() === user.email.toLowerCase());
+                const displayId = isSelfSent ? `${m.messageId}_sent_copy` : m.messageId;
+
                 // For sent: 'from' is the sender (current user), 'to' is the recipient
                 return {
-                    id: m.messageId,
+                    id: displayId,
                     name: m.to[0] || 'Unknown', // Display recipient's email in the list
                     email: m.to[0] || '', // Recipient's email
                     subject: m.subject,
@@ -136,6 +141,7 @@ export function MailProvider({ children }: { children: ReactNode }) {
             });
 
             // Combine all emails and deduplicate by ID (keep first occurrence)
+            // Note: Since self-sent emails in 'sentMails' now have a different ID, they won't conflict with 'inboxMails'
             const combinedMails = [...allMails, ...draftMails];
             const uniqueMails = combinedMails.filter((mail, index, self) =>
                 index === self.findIndex(m => m.id === mail.id)
@@ -176,47 +182,54 @@ export function MailProvider({ children }: { children: ReactNode }) {
     }, [statusVersion]);
 
     const getEmailStatus = (messageId: string): EmailStatus => {
-        return mailService.getEmailStatus(messageId);
+        const realId = messageId.replace('_sent_copy', '');
+        return mailService.getEmailStatus(realId);
     };
 
     const updateEmailStatus = (messageId: string, status: Partial<EmailStatus>) => {
         if (user?.email) {
-            mailService.updateEmailStatus(messageId, status, user.email);
+            const realId = messageId.replace('_sent_copy', '');
+            mailService.updateEmailStatus(realId, status, user.email);
             setStatusVersion(v => v + 1);
         }
     };
 
     const markAsRead = (messageId: string) => {
         if (user?.email) {
-            mailService.markAsRead(messageId, user.email);
+            const realId = messageId.replace('_sent_copy', '');
+            mailService.markAsRead(realId, user.email);
             setStatusVersion(v => v + 1);
         }
     };
 
     const markAsUnread = (messageId: string) => {
         if (user?.email) {
-            mailService.markAsUnread(messageId, user.email);
+            const realId = messageId.replace('_sent_copy', '');
+            mailService.markAsUnread(realId, user.email);
             setStatusVersion(v => v + 1);
         }
     };
 
     const moveToSpam = (messageId: string) => {
         if (user?.email) {
-            mailService.moveToSpam(messageId, user.email);
+            const realId = messageId.replace('_sent_copy', '');
+            mailService.moveToSpam(realId, user.email);
             setStatusVersion(v => v + 1);
         }
     };
 
     const moveToArchive = (messageId: string) => {
         if (user?.email) {
-            mailService.moveToArchive(messageId, user.email);
+            const realId = messageId.replace('_sent_copy', '');
+            mailService.moveToArchive(realId, user.email);
             setStatusVersion(v => v + 1);
         }
     };
 
     const removeFromArchive = (messageId: string) => {
         if (user?.email) {
-            mailService.removeFromArchive(messageId, user.email);
+            const realId = messageId.replace('_sent_copy', '');
+            mailService.removeFromArchive(realId, user.email);
             setStatusVersion(v => v + 1);
         }
     };
@@ -224,32 +237,37 @@ export function MailProvider({ children }: { children: ReactNode }) {
     const moveToTrash = (messageId: string) => {
         if (!user?.email) return;
 
-        const mail = mails.find(m => m.id === messageId);
+        const realId = messageId.replace('_sent_copy', '');
+        const mail = mails.find(m => m.id === messageId); // Use original ID from state to check status
+
         if (mail?.status === 'draft') {
-            mailService.deleteDraft(messageId, user.email);
+            mailService.deleteDraft(realId, user.email);
         } else {
-            mailService.moveToTrash(messageId, user.email);
+            mailService.moveToTrash(realId, user.email);
         }
         setStatusVersion(v => v + 1);
     };
 
     const restoreFromTrash = (messageId: string) => {
         if (user?.email) {
-            mailService.restoreFromTrash(messageId, user.email);
+            const realId = messageId.replace('_sent_copy', '');
+            mailService.restoreFromTrash(realId, user.email);
             setStatusVersion(v => v + 1);
         }
     };
 
     const addLabel = (messageId: string, label: string) => {
         if (user?.email) {
-            mailService.addLabel(messageId, label, user.email);
+            const realId = messageId.replace('_sent_copy', '');
+            mailService.addLabel(realId, label, user.email);
             setStatusVersion(v => v + 1);
         }
     };
 
     const removeLabel = (messageId: string, label: string) => {
         if (user?.email) {
-            mailService.removeLabel(messageId, label, user.email);
+            const realId = messageId.replace('_sent_copy', '');
+            mailService.removeLabel(realId, label, user.email);
             setStatusVersion(v => v + 1);
         }
     };
@@ -258,11 +276,12 @@ export function MailProvider({ children }: { children: ReactNode }) {
         if (!user?.email) return;
 
         messageIds.forEach(id => {
-            const mail = mails.find(m => m.id === id);
+            const realId = id.replace('_sent_copy', '');
+            const mail = mails.find(m => m.id === id); // Check state using passed ID
             if (mail?.status === 'draft') {
-                mailService.deleteDraft(id, user.email);
+                mailService.deleteDraft(realId, user.email);
             } else {
-                mailService.moveToTrash(id, user.email);
+                mailService.moveToTrash(realId, user.email);
             }
         });
         setStatusVersion(v => v + 1);
@@ -270,34 +289,47 @@ export function MailProvider({ children }: { children: ReactNode }) {
 
     const archiveMails = (messageIds: string[]) => {
         if (user?.email) {
-            messageIds.forEach(id => mailService.moveToArchive(id, user.email));
+            messageIds.forEach(id => {
+                const realId = id.replace('_sent_copy', '');
+                mailService.moveToArchive(realId, user.email)
+            });
             setStatusVersion(v => v + 1);
         }
     };
 
     const spamMails = (messageIds: string[]) => {
         if (user?.email) {
-            messageIds.forEach(id => mailService.moveToSpam(id, user.email));
+            messageIds.forEach(id => {
+                const realId = id.replace('_sent_copy', '');
+                mailService.moveToSpam(realId, user.email)
+            });
             setStatusVersion(v => v + 1);
         }
     };
 
     const addLabelToMails = (messageIds: string[], label: string) => {
         if (user?.email) {
-            messageIds.forEach(id => mailService.addLabel(id, label, user.email));
+            messageIds.forEach(id => {
+                const realId = id.replace('_sent_copy', '');
+                mailService.addLabel(realId, label, user.email)
+            });
             setStatusVersion(v => v + 1);
         }
     };
 
     const removeLabelFromMails = (messageIds: string[], label: string) => {
         if (user?.email) {
-            messageIds.forEach(id => mailService.removeLabel(id, label, user.email));
+            messageIds.forEach(id => {
+                const realId = id.replace('_sent_copy', '');
+                mailService.removeLabel(realId, label, user.email)
+            });
             setStatusVersion(v => v + 1);
         }
     };
 
     const saveDraft = (draft: DraftEmail) => {
         if (user?.email) {
+            // Drafts don't use 'sent' copy so no need to replace
             mailService.saveDraft(draft, user.email);
             setStatusVersion(v => v + 1);
         }
@@ -305,7 +337,8 @@ export function MailProvider({ children }: { children: ReactNode }) {
 
     const deleteDraft = (id: string) => {
         if (user?.email) {
-            mailService.deleteDraft(id, user.email);
+            const realId = id.replace('_sent_copy', '');
+            mailService.deleteDraft(realId, user.email);
             setStatusVersion(v => v + 1);
         }
     };

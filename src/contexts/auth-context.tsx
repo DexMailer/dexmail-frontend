@@ -10,9 +10,9 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password?: string, signature?: string, authType?: 'wallet') => Promise<void>;
-  loginWithWallet: (email: string, walletAddress: string, signature: string) => Promise<void>;
-  register: (email: string, password: string, authType?: 'wallet' | 'coinbase-embedded', walletAddress?: string, signature?: string) => Promise<void>;
+  login: (email: string, password?: string, signature?: string, authType?: 'wallet', message?: string) => Promise<void>;
+  loginWithWallet: (email: string, walletAddress: string, message: string, signature: string) => Promise<void>;
+  register: (email: string, password: string, authType?: 'wallet' | 'coinbase-embedded', walletAddress?: string, signature?: string, message?: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -93,7 +93,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     email: string,
     password?: string,
     signature?: string,
-    authType: 'wallet' = 'wallet'
+    authType: 'wallet' = 'wallet',
+    message?: string
   ) => {
     console.log('[AuthContext] login called with:', { email, authType, hasPassword: !!password, hasSignature: !!signature });
     try {
@@ -101,6 +102,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         email,
         password,
         signature,
+        message,
         authType,
       });
       console.log('[AuthContext] login response:', response);
@@ -112,8 +114,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const loginWithWallet = async (email: string, walletAddress: string, signature: string) => {
-    const response = await authService.loginWithWallet(email, walletAddress, signature);
+  const loginWithWallet = async (email: string, walletAddress: string, message: string, signature: string) => {
+    const response = await authService.loginWithWallet(email, walletAddress, message, signature);
     setUser(response.user);
   };
 

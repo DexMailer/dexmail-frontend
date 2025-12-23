@@ -14,6 +14,9 @@ export const wagmiConfig = getDefaultConfig({
   transports: {
     [base.id]: http("https://mainnet.base.org"),
   },
+  appUrl: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000',
+  appIcon:"/favicon.ico",
+  appDescription: "DexMail - Decentralized Email on Base",
   ssr: true,
   storage: createStorage({
     storage: typeof window !== 'undefined' ? window.localStorage : undefined,

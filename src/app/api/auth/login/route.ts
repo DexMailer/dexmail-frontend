@@ -51,19 +51,49 @@ export async function POST(request: NextRequest) {
                 );
             }
         } else if (authType === 'wallet') {
-            if (!signature) {
+            const { message, signature } = body;
+
+            if (!signature || !message) {
                 return NextResponse.json(
-                    { error: 'Signature is required for wallet login' },
+                    { error: 'Signature and message are required for wallet login' },
                     { status: 400 }
                 );
             }
 
-            // In a production app, you would verify the signature here
-            // For now, we trust that the wallet connection is valid
-            if (!user.walletAddress) {
+            try {
+                const { SiweMessage } = await import('siwe');
+                const siweMessage = new SiweMessage(message);
+
+                // Verify the signature
+                const fields = await siweMessage.verify({ signature });
+
+                // Fields.data.address is the address that signed the message
+                const recoveredAddress = fields.data.address;
+
+                if (recoveredAddress.toLowerCase() !== user.walletAddress?.toLowerCase()) {
+                    // Check if user has a wallet address linked. If not, maybe we should link it?
+                    // Current logic expects user.walletAddress to match.
+                    if (!user.walletAddress) {
+                        return NextResponse.json(
+                            { error: 'No wallet linked to this account' },
+                            { status: 400 }
+                        );
+                    }
+
+                    return NextResponse.json(
+                        { error: 'Invalid signature for this user' },
+                        { status: 401 }
+                    );
+                }
+
+                // Also verify nonce if we were storing it.
+                // For now, we verified the signature is valid for the message.
+
+            } catch (e) {
+                console.error('SIWE Verification failed:', e);
                 return NextResponse.json(
-                    { error: 'No wallet linked to this account' },
-                    { status: 400 }
+                    { error: 'Invalid signature' },
+                    { status: 401 }
                 );
             }
         } else if (authType === 'coinbase-embedded') {
