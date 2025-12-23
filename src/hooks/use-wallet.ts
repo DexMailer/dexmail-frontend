@@ -64,11 +64,12 @@ export function useWallet() {
       const message = new SiweMessage({
         domain,
         address,
-        statement: 'Sign in to DexMail to access your decentralized inbox.',
+        statement: `${domain} wants you to sign in with your Ethereum account.`,
         uri: origin,
         version: '1',
         chainId: chain?.id || 8453,
         nonce: challenge.nonce,
+        issuedAt: new Date().toISOString(),
       });
 
       const preparedMessage = message.prepareMessage();
@@ -98,11 +99,12 @@ export function useWallet() {
       const message = new SiweMessage({
         domain,
         address,
-        statement: 'Sign in to DexMail to access your decentralized inbox.',
+        statement: `${domain} wants you to sign in with your Ethereum account.`,
         uri: origin,
         version: '1',
         chainId: chain?.id || 8453,
         nonce: challenge.nonce,
+        issuedAt: new Date().toISOString(),
       });
 
       const preparedMessage = message.prepareMessage();

@@ -217,6 +217,16 @@ class AuthService {
   async getChallenge(email: string): Promise<ChallengeResponse> {
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
+    // Generate a proper alphanumeric nonce for SIWE
+    const generateLocalNonce = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let result = '';
+      for (let i = 0; i < 16; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
+    };
+
     try {
       const response = await fetch(`${API_BASE_URL}/auth/challenge`, {
         method: 'POST',
@@ -230,7 +240,7 @@ class AuthService {
         // Fallback to local challenge if backend is unavailable
         console.warn('Backend challenge endpoint unavailable, using local challenge');
         return {
-          nonce: `Login to DexMail: ${Date.now()}`,
+          nonce: generateLocalNonce(),
           expires: Date.now() + 3600000
         };
       }
@@ -239,7 +249,7 @@ class AuthService {
     } catch (error) {
       console.warn('Failed to get challenge from backend, using local challenge:', error);
       return {
-        nonce: `Login to DexMail: ${Date.now()}`,
+        nonce: generateLocalNonce(),
         expires: Date.now() + 3600000
       };
     }

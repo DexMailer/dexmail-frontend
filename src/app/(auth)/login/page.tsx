@@ -116,7 +116,9 @@ export default function LoginPage() {
     try {
       setError('');
 
-      const domain = process.env.NEXT_PUBLIC_DOMAIN || window.location.host;
+      // Always use actual browser domain for SIWE to avoid "suspicious sign-in" warnings
+      const domain = window.location.host;
+      const origin = window.location.origin;
       const fullEmail = email.includes('@') ? email : `${email}@dexmail.app`; // using hardcoded dexmail.app as fallback if env not set for consistency with regex below
 
       console.log('[Login] Authenticating with:', fullEmail);
@@ -128,10 +130,11 @@ export default function LoginPage() {
         domain,
         address,
         statement: 'Sign in to DexMail to access your decentralized inbox.',
-        uri: window.location.origin,
+        uri: origin,
         version: '1',
-        chainId: chain?.id || 1, // Fallback to 1 if chain not found, usually should be correct
+        chainId: chain?.id || 8453, // Base mainnet
         nonce: challenge.nonce,
+        issuedAt: new Date().toISOString(),
       });
 
       const preparedMessage = message.prepareMessage();
