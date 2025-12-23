@@ -165,6 +165,15 @@ function MobileHeader() {
     (img) => img.id === 'user-avatar-1'
   );
 
+  const formattedEmail = (() => {
+    const email = user?.email || 'User';
+    const parts = email.split('@');
+    if (parts.length !== 2) return email;
+    const [name, domain] = parts;
+    if (name.length <= 4) return email;
+    return `${name.slice(0, 4)}...@${domain}`;
+  })();
+
   return (
     <header className="fixed top-0 z-10 flex h-16 items-center justify-between gap-3 border-b bg-background px-4 w-full">
       <div className="relative flex-1 max-w-xs">
@@ -188,7 +197,7 @@ function MobileHeader() {
           <DropdownMenuContent className="w-56" align="end">
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none truncate">{user?.email || 'User'}</p>
+                <p className="text-sm font-medium leading-none truncate">{formattedEmail}</p>
                 <p className="text-xs leading-none text-muted-foreground truncate">
                   {displayAddress
                     ? `${displayAddress.slice(0, 6)}...${displayAddress.slice(-4)}`

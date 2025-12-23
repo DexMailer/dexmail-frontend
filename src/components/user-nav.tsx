@@ -36,6 +36,15 @@ export function UserNav() {
     : 'No wallet');
 
   const displayEmail = user?.email || 'user@example.com';
+
+  const formattedEmail = (() => {
+    const parts = displayEmail.split('@');
+    if (parts.length !== 2) return displayEmail;
+    const [name, domain] = parts;
+    if (name.length <= 4) return displayEmail;
+    return `${name.slice(0, 4)}...@${domain}`;
+  })();
+
   const [copied, setCopied] = useState(false);
 
   const handleCopyEmail = (e: React.MouseEvent) => {
@@ -54,10 +63,10 @@ export function UserNav() {
             <AvatarImage src={userAvatar?.imageUrl} alt="User Avatar" data-ai-hint={userAvatar?.imageHint} />
             <AvatarFallback>U</AvatarFallback>
           </Avatar>
-          <div className="text-left group-data-[collapsible=icon]/sidebar:hidden">
-            <p className="text-sm font-medium leading-none">{walletText}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {displayEmail}
+          <div className="text-left group-data-[collapsible=icon]/sidebar:hidden w-full overflow-hidden">
+            <p className="text-sm font-medium leading-none truncate">{walletText}</p>
+            <p className="text-xs leading-none text-muted-foreground truncate">
+              {formattedEmail}
             </p>
           </div>
           <ChevronsUpDown className="ml-auto h-4 w-4 text-muted-foreground group-data-[collapsible=icon]/sidebar:hidden" />
@@ -69,7 +78,7 @@ export function UserNav() {
             <p className="text-sm font-medium leading-none">{walletText}</p>
             <div className="text-xs leading-none text-muted-foreground">
               <div className="flex items-center gap-2">
-                <span className="text-xs leading-none text-muted-foreground">{displayEmail}</span>
+                <span className="text-xs leading-none text-muted-foreground truncate max-w-[150px]" title={displayEmail}>{formattedEmail}</span>
                 <Button
                   variant="ghost"
                   size="icon"

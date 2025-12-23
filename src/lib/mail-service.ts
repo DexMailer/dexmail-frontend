@@ -482,38 +482,55 @@ class MailService {
   }
 
   async validateEmail(email: string): Promise<{ isValid: boolean; exists: boolean; reason?: string }> {
-    // Basic format validation
+    const results = await this.validateEmailsBatch([email]);
+    return results[email];
+  }
+
+  async validateEmailsBatch(emails: string[]): Promise<Record<string, { isValid: boolean; exists: boolean; reason?: string }>> {
+    const results: Record<string, { isValid: boolean; exists: boolean; reason?: string }> = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return { isValid: false, exists: false, reason: 'Invalid email format' };
-    }
 
-    // External emails are always valid (we can't check them)
-    if (!email.toLowerCase().endsWith('@dexmail.app')) {
-      return { isValid: true, exists: true };
-    }
-
-    // Check if @dexmail.app address exists on blockchain
-    try {
-      const registrationStatus = await readContract(wagmiConfig, {
-        address: BASEMAILER_ADDRESS,
-        abi: baseMailerAbi,
-        functionName: 'isRecipientRegistered',
-        args: [email]
-      }) as [boolean, boolean];
-
-      const isRegistered = registrationStatus[0];
-
-      if (!isRegistered) {
-        return { isValid: false, exists: false, reason: 'Address not found' };
+    for (const email of emails) {
+      // Basic format validation
+      if (!emailRegex.test(email)) {
+        results[email] = { isValid: false, exists: false, reason: 'Invalid email format' };
+        continue;
       }
 
-      return { isValid: true, exists: true };
-    } catch (error) {
-      console.error('[MailService] Error validating email:', error);
-      // On error, assume valid to avoid blocking sends
-      return { isValid: true, exists: true, reason: 'Could not verify' };
+      // External emails are always valid (we can't check them)
+      if (!email.toLowerCase().endsWith('@dexmail.app')) {
+        results[email] = { isValid: true, exists: true };
+        continue;
+      }
+
+      // Check if @dexmail.app address exists on blockchain
+      try {
+        const registrationStatus = await readContract(wagmiConfig, {
+          address: BASEMAILER_ADDRESS,
+          abi: baseMailerAbi,
+          functionName: 'isRecipientRegistered',
+          args: [email]
+        }) as [boolean, boolean];
+
+        const isRegistered = registrationStatus[0];
+
+        if (!isRegistered) {
+          results[email] = { isValid: false, exists: false, reason: 'Address not found' };
+        } else {
+          results[email] = { isValid: true, exists: true };
+        }
+
+        // Simple throttle to prevent 429 errors
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+      } catch (error) {
+        console.error(`[MailService] Error validating email ${email}:`, error);
+        // On error, assume valid to avoid blocking sends
+        results[email] = { isValid: true, exists: true, reason: 'Could not verify' };
+      }
     }
+
+    return results;
   }
 
   private async fetchEmailFromIPFS(cidHash: string): Promise<{ subject: string; body: string; from?: string; inReplyTo?: string } | null> {
@@ -744,88 +761,81 @@ class MailService {
       if (!publicClient) return [];
 
       const currentBlock = await publicClient.getBlockNumber();
-      // Optimization: We could store lastFetchedBlock in cache too, but for now just fetch logs
-      // and filter by what we already have in cache.
-      const fromBlock = currentBlock > BigInt(3000) ? currentBlock - BigInt(3000) : BigInt(0);
+      let mailIds: bigint[] = [];
+      let usingLogFallback = false;
 
-      const logs = await publicClient.getLogs({
-        address: BASEMAILER_ADDRESS,
-        event: {
-          type: 'event',
-          name: 'MailSent',
-          inputs: [
-            { type: 'uint256', name: 'mailId', indexed: true },
-            { type: 'address', name: 'sender', indexed: true },
-            { type: 'string', name: 'recipient' },
-            { type: 'string', name: 'cid' },
-            { type: 'string', name: 'originalSender' },
-            { type: 'bool', name: 'isSpam' }
-          ]
-        },
-        args: {
-          sender: senderAddress
-        },
-        fromBlock: fromBlock,
-        toBlock: currentBlock
-      });
+      try {
+        // fast path: try to get directly from smart contract indexing
+        const sentIds = await readContract(wagmiConfig, {
+          address: BASEMAILER_ADDRESS,
+          abi: baseMailerAbi,
+          functionName: 'getSentMails',
+          args: [email]
+        }) as unknown as bigint[];
 
-      console.log(`[MailService] Found ${logs.length} sent mail event(s)`);
+        if (sentIds && Array.isArray(sentIds)) {
+          mailIds = [...sentIds];
+          console.log('[MailService] Used on-chain index for sent mails:', mailIds.length);
+        } else {
+          usingLogFallback = true;
+        }
+      } catch (err) {
+        console.warn('[MailService] getSentMails failed (contract likely older), falling back to logs');
+        usingLogFallback = true;
+      }
 
+      let fetchPromises;
+
+      if (usingLogFallback) {
+        // Fallback: Fetch logs for last 3000 blocks
+        const fromBlock = currentBlock > BigInt(3000) ? currentBlock - BigInt(3000) : BigInt(0);
+
+        const logs = await publicClient.getLogs({
+          address: BASEMAILER_ADDRESS,
+          event: {
+            type: 'event',
+            name: 'MailSent',
+            inputs: [
+              { type: 'uint256', name: 'mailId', indexed: true },
+              { type: 'address', name: 'sender', indexed: true },
+              { type: 'string', name: 'recipient' },
+              { type: 'string', name: 'cid' },
+              { type: 'string', name: 'originalSender' },
+              { type: 'bool', name: 'isSpam' }
+            ]
+          },
+          args: {
+            sender: senderAddress
+          },
+          fromBlock: fromBlock,
+          toBlock: currentBlock
+        });
+
+        console.log(`[MailService] Found ${logs.length} sent mail event(s)`);
+
+        fetchPromises = logs.map(async (log) => {
+          const mailId = log.args.mailId as bigint;
+          return this.fetchMailDetails(mailId, email, cache);
+        });
+
+      } else {
+        // Process IDs from on-chain index
+        fetchPromises = mailIds.map(async (id) => {
+          return this.fetchMailDetails(id, email, cache);
+        });
+      }
+
+      const results = await Promise.all(fetchPromises);
       const messages: EmailMessage[] = [];
       let hasNewData = false;
 
-      const fetchPromises = logs.map(async (log) => {
-        try {
-          const mailId = log.args.mailId as bigint;
-          const idStr = mailId.toString();
-
-          if (cache[idStr]) {
-            return cache[idStr];
-          }
-
-          const recipient = log.args.recipient as string;
-          const cidHash = log.args.cid as string;
-
-          // We don't strictly need to call getMail for sent items if we trust the event log,
-          // but getMail gives us the timestamp which might not be in the event (unless we use block timestamp).
-          // Let's stick to getMail for consistency and timestamp.
-          const mail = await readContract(wagmiConfig, {
-            address: BASEMAILER_ADDRESS,
-            abi: baseMailerAbi,
-            functionName: 'getMail',
-            args: [mailId]
-          }) as any;
-
-          const ipfsContent = await this.fetchEmailFromIPFS(cidHash);
-          const subject = ipfsContent?.subject || 'Sent Email';
-          const body = ipfsContent?.body || '';
-
-          const newMessage: EmailMessage = {
-            messageId: idStr,
-            from: email,
-            to: [recipient],
-            subject: subject,
-            body: body,
-            timestamp: mail.timestamp.toString(),
-            hasCryptoTransfer: mail.hasCrypto,
-            ipfsCid: cidHash,
-            inReplyTo: ipfsContent?.inReplyTo,
-            isSpam: mail.isSpam
-          };
-
-          cache[idStr] = newMessage;
-          hasNewData = true;
-          return newMessage;
-
-        } catch (mailError) {
-          console.error(`[MailService] Error processing sent mail:`, mailError);
-          return null;
-        }
-      });
-
-      const results = await Promise.all(fetchPromises);
       results.forEach(msg => {
-        if (msg) messages.push(msg);
+        if (msg) {
+          messages.push(msg);
+          // Verify if it's new for cache
+          if (!cache[msg.messageId]) hasNewData = true;
+          cache[msg.messageId] = msg;
+        }
       });
 
       if (hasNewData) {
@@ -833,10 +843,52 @@ class MailService {
         console.log('[MailService] Updated sent cache');
       }
 
-      return messages.reverse();
+      // Sort by timestamp desc
+      return messages.sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
+
     } catch (error) {
       console.error('[MailService] Error fetching sent emails:', error);
       return [];
+    }
+  }
+
+  // Helper to fetch details for a single mail ID (used by both strategies)
+  private async fetchMailDetails(mailId: bigint, userEmail: string, cache: Record<string, EmailMessage>): Promise<EmailMessage | null> {
+    try {
+      const idStr = mailId.toString();
+
+      if (cache[idStr]) {
+        return cache[idStr];
+      }
+
+      const mail = await readContract(wagmiConfig, {
+        address: BASEMAILER_ADDRESS,
+        abi: baseMailerAbi,
+        functionName: 'getMail',
+        args: [mailId]
+      }) as any;
+
+      const cidHash = mail.cid;
+      const ipfsContent = await this.fetchEmailFromIPFS(cidHash);
+      const subject = ipfsContent?.subject || 'Sent Email';
+      const body = ipfsContent?.body || '';
+
+      const newMessage: EmailMessage = {
+        messageId: idStr,
+        from: userEmail, // We know it's from us
+        to: [mail.recipientEmail],
+        subject: subject,
+        body: body,
+        timestamp: mail.timestamp.toString(),
+        hasCryptoTransfer: mail.hasCrypto,
+        ipfsCid: cidHash,
+        inReplyTo: ipfsContent?.inReplyTo,
+        isSpam: mail.isSpam
+      };
+      return newMessage;
+    } catch (e) {
+      console.error(`Failed to fetch mail details for ID ${mailId}`, e);
+      return null;
     }
   }
 

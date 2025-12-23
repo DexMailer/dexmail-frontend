@@ -51,6 +51,39 @@
 	{
 		"inputs": [
 			{
+				"internalType": "string",
+				"name": "cid",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "recipientEmail",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "originalSender",
+				"type": "string"
+			},
+			{
+				"internalType": "bool",
+				"name": "isExternal",
+				"type": "bool"
+			},
+			{
+				"internalType": "bool",
+				"name": "hasCrypto",
+				"type": "bool"
+			}
+		],
+		"name": "indexMail",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "address",
 				"name": "_initialOwner",
 				"type": "address"
@@ -249,39 +282,6 @@
 		],
 		"name": "EmailRegistered",
 		"type": "event"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "cid",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "recipientEmail",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "originalSender",
-				"type": "string"
-			},
-			{
-				"internalType": "bool",
-				"name": "isExternal",
-				"type": "bool"
-			},
-			{
-				"internalType": "bool",
-				"name": "hasCrypto",
-				"type": "bool"
-			}
-		],
-		"name": "indexMail",
-		"outputs": [],
-		"stateMutability": "payable",
-		"type": "function"
 	},
 	{
 		"anonymous": false,
@@ -1112,6 +1112,25 @@
 	{
 		"inputs": [
 			{
+				"internalType": "string",
+				"name": "email",
+				"type": "string"
+			}
+		],
+		"name": "getSentMails",
+		"outputs": [
+			{
+				"internalType": "uint256[]",
+				"name": "",
+				"type": "uint256[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "bytes32",
 				"name": "emailHash",
 				"type": "bytes32"
@@ -1463,6 +1482,30 @@
 				"internalType": "string",
 				"name": "recipientEmail",
 				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "sentMails",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",

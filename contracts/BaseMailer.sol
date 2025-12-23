@@ -140,6 +140,7 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
     
     // Mail inbox
     mapping(string => uint256[]) public inbox;
+    mapping(string => uint256[]) public sentMails;
     Mail[] public mails;
     
     // Email-to-wallet mapping
@@ -269,6 +270,7 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
         }));
         
         inbox[recipientEmail].push(mailId);
+        sentMails[senderEmail].push(mailId);
         
         // Auto-whitelist logic: When sending mail to someone, automatically whitelist them
         // so they can reply without paying fees.
@@ -321,6 +323,10 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
     
     function getInbox(string calldata email) external view returns (uint256[] memory) {
         return inbox[email];
+    }
+
+    function getSentMails(string calldata email) external view returns (uint256[] memory) {
+        return sentMails[email];
     }
     
     function getMail(uint256 mailId) external view returns (Mail memory) {
@@ -478,7 +484,11 @@ contract BaseMailer is Ownable, Pausable, ReentrancyGuard {
             originalSender: ""
         }));
         
+        string memory senderEmail = addressToEmail[msg.sender];
         inbox[recipientEmail].push(mailId);
+        if (bytes(senderEmail).length > 0) {
+            sentMails[senderEmail].push(mailId);
+        }
         
         emit MailSent(mailId, msg.sender, recipientEmail, cid, "", false);
 

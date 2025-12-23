@@ -6,7 +6,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden">
+    <div className="flex min-h-[100dvh] flex-col bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden">
       {/* Header with Logo */}
       <div className="flex-none flex items-center justify-between p-6">
         <AppLogo />

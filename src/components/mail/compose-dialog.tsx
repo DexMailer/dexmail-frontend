@@ -185,12 +185,10 @@ export function ComposeDialog({
       );
 
       if (dexmailAddresses.length > 0) {
-        const validationResults = await Promise.all(
-          dexmailAddresses.map(email => mailService.validateEmail(email))
-        );
+        const validationResults = await mailService.validateEmailsBatch(dexmailAddresses);
 
-        const invalidAddresses = dexmailAddresses.filter((email, index) =>
-          !validationResults[index].isValid
+        const invalidAddresses = dexmailAddresses.filter(email =>
+          !validationResults[email]?.isValid
         );
 
         if (invalidAddresses.length > 0) {
