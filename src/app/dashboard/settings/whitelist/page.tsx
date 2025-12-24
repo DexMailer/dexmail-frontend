@@ -140,7 +140,7 @@ export default function WhitelistSettingsPage() {
 
                 const result = await sendUserOperation({
                     evmSmartAccount: smartAccount,
-                    network: "base-sepolia",
+                    network: "base-mainnet" as any,
                     calls: [{
                         to: BASEMAILER_ADDRESS as `0x${string}`,
                         data: callData,
@@ -243,7 +243,7 @@ export default function WhitelistSettingsPage() {
 
                 const result = await sendUserOperation({
                     evmSmartAccount: smartAccount,
-                    network: "base-sepolia",
+                    network: "base-mainnet" as any,
                     calls: [{
                         to: BASEMAILER_ADDRESS as `0x${string}`,
                         data: callData,

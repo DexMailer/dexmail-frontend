@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
         console.log('[API] Fetching Tokens for:', walletAddress);
 
         const apiKey = process.env.ALCHEMY_API_KEY || 'demo';
-        const baseURL = `https://base-sepolia.g.alchemy.com/v2/${apiKey}`;
+        const baseURL = `https://base-mainnet.g.alchemy.com/v2/${apiKey}`;
 
         // 1. Get Token Balances
         const balancesResponse = await fetch(`${baseURL}`, {
