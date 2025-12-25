@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { mailService, EmailStatus, DraftEmail } from '@/lib/mail-service';
-import { Mail, mails as mockMails } from '@/lib/data';
+import { Mail } from '@/lib/data';
 import { useAccount } from 'wagmi';
 import { useAuth } from './auth-context';
 
@@ -145,8 +145,8 @@ export function MailProvider({ children }: { children: ReactNode }) {
                 };
             });
 
-            // Combine inbox and sent emails, and inject mock data for verification
-            let allMails = [...inboxMails, ...sentMails, ...mockMails];
+            // Combine inbox and sent emails
+            let allMails = [...inboxMails, ...sentMails];
 
             // Fetch drafts
             const draftMails: Mail[] = fetchedDrafts.map(d => {
