@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
+import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "@/components/ui/input-otp";
 import { Wallet, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { useWallet } from "@/hooks/use-wallet";
 import { useAuth } from "@/contexts/auth-context";
@@ -412,7 +413,25 @@ export default function LoginPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Card className="overflow-hidden">
+      {/* Mobile Logo */}
+      <div className="flex flex-col items-center gap-3 md:hidden">
+        <Image
+          src="/logo.png"
+          alt="DexMail Logo"
+          width={80}
+          height={80}
+          className="rounded-2xl"
+          priority
+        />
+        <div className="text-center space-y-1">
+          <h2 className="text-xl font-semibold tracking-tight">Welcome to DexMail</h2>
+          <p className="text-xs text-muted-foreground">
+            Secure, decentralized email powered by blockchain.
+          </p>
+        </div>
+      </div>
+      
+      <Card className="overflow-hidden bg-white dark:bg-slate-800 border-0 shadow-lg">
         <CardContent className="grid p-0 md:grid-cols-2">
           <form className="p-6 md:p-8" onSubmit={(e) => e.preventDefault()}>
             <div className="flex flex-col gap-6">
@@ -495,18 +514,28 @@ export default function LoginPage() {
                       {/* Step 2: OTP verification */}
                       {isOtpSent && !isSignedIn && (
                         <>
-                          <div className="grid gap-2">
+                          <div className="grid gap-4">
                             <Label htmlFor="embedded-otp">Verification Code</Label>
-                            <Input
-                              id="embedded-otp"
-                              type="text"
-                              inputMode="numeric"
+                            <InputOTP
                               maxLength={6}
-                              placeholder="123456"
                               value={otpCode}
-                              onChange={(e) => setOtpCode(e.target.value)}
-                              required
-                            />
+                              onChange={(value) => setOtpCode(value)}
+                            >
+                              <InputOTPGroup>
+                                <InputOTPSlot index={0} />
+                                <InputOTPSlot index={1} />
+                              </InputOTPGroup>
+                              <InputOTPSeparator />
+                              <InputOTPGroup>
+                                <InputOTPSlot index={2} />
+                                <InputOTPSlot index={3} />
+                              </InputOTPGroup>
+                              <InputOTPSeparator />
+                              <InputOTPGroup>
+                                <InputOTPSlot index={4} />
+                                <InputOTPSlot index={5} />
+                              </InputOTPGroup>
+                            </InputOTP>
                           </div>
                           <Button
                             onClick={handleVerifyOtp}
@@ -677,7 +706,7 @@ export default function LoginPage() {
               )}
             </div>
           </form>
-          <div className="relative hidden flex-col items-center justify-center bg-muted p-8 md:flex">
+          <div className="relative hidden flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 p-8 md:flex md:border-l-0 shadow-inner">
             <Image
               src="/logo.png"
               alt="DexMail Logo"

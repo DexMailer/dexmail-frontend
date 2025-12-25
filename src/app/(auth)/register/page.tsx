@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
+import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "@/components/ui/input-otp";
 import { Wallet, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { useWallet } from "@/hooks/use-wallet";
 import { useBasename } from "@/hooks/use-basename";
@@ -334,7 +335,25 @@ export default function RegisterPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Card className="overflow-hidden">
+      {/* Mobile Logo */}
+      <div className="flex flex-col items-center gap-3 md:hidden">
+        <Image
+          src="/logo.png"
+          alt="DexMail Logo"
+          width={80}
+          height={80}
+          className="rounded-2xl"
+          priority
+        />
+        <div className="text-center space-y-1">
+          <h2 className="text-xl font-semibold tracking-tight">Join DexMail</h2>
+          <p className="text-xs text-muted-foreground">
+            Create your account and experience the future of private communication.
+          </p>
+        </div>
+      </div>
+      
+      <Card className="overflow-hidden bg-white dark:bg-slate-800 border-0 shadow-lg">
         <CardContent className="grid p-0 md:grid-cols-2">
           <form className="p-6 md:p-8" onSubmit={(e) => e.preventDefault()}>
             <div className="flex flex-col gap-6">
@@ -418,22 +437,32 @@ export default function RegisterPage() {
 
                     {/* Step 2: OTP verification (only show if OTP was sent but user not yet signed in) */}
                     {isOtpSent && !isSignedIn && (
-                      <div className="space-y-2 pt-2">
+                      <div className="space-y-4 pt-2">
                         <Label htmlFor="embedded-otp" className="text-slate-700 dark:text-slate-300 font-medium">
                           Enter 6-digit code
                         </Label>
-                        <Input
-                          id="embedded-otp"
-                          type="text"
-                          inputMode="numeric"
-                          maxLength={6}
-                          placeholder="123456"
-                          className="h-12 bg-white border-slate-200 rounded-xl focus:border-slate-400 focus:ring-slate-400 text-black placeholder:text-slate-500"
-                          style={{ colorScheme: 'light' }}
-                          value={otpCode}
-                          onChange={(e) => setOtpCode(e.target.value)}
-                          required
-                        />
+                        <div className="flex justify-center">
+                          <InputOTP
+                            maxLength={6}
+                            value={otpCode}
+                            onChange={(value) => setOtpCode(value)}
+                          >
+                            <InputOTPGroup>
+                              <InputOTPSlot index={0} />
+                              <InputOTPSlot index={1} />
+                            </InputOTPGroup>
+                            <InputOTPSeparator />
+                            <InputOTPGroup>
+                              <InputOTPSlot index={2} />
+                              <InputOTPSlot index={3} />
+                            </InputOTPGroup>
+                            <InputOTPSeparator />
+                            <InputOTPGroup>
+                              <InputOTPSlot index={4} />
+                              <InputOTPSlot index={5} />
+                            </InputOTPGroup>
+                          </InputOTP>
+                        </div>
                         <Button
                           onClick={handleVerifyOtp}
                           disabled={isVerifyingOtp}
@@ -717,7 +746,7 @@ export default function RegisterPage() {
           )}
             </div>
           </form>
-          <div className="relative hidden flex-col items-center justify-center bg-muted p-8 md:flex">
+          <div className="relative hidden flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 p-8 md:flex md:border-l-0 shadow-inner">
             <Image
               src="/logo.png"
               alt="DexMail Logo"
