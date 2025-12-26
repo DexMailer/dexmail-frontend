@@ -676,34 +676,8 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
                   Attachments ({mail.attachments.length})
                 </span>
               </div>
-              
-              {/* Image Previews Grid */}
-              {imageAttachments.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {imageAttachments.map((attachment, index) => {
-                    const imageUrl = getIpfsUrl(attachment.cid);
-                    return (
-                      <div
-                        key={`img-${index}`}
-                        className="relative w-20 h-20 rounded-md overflow-hidden border bg-muted cursor-pointer group"
-                        onClick={() => openLightbox(index)}
-                      >
-                        <img
-                          src={imageUrl}
-                          alt={attachment.name}
-                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                          loading="lazy"
-                        />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                          <ZoomIn className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
 
-              {/* Non-image attachments list */}
+              {/* Attachments list */}
               <div className="grid gap-2">
                 {mail.attachments.map((attachment, index) => {
                   const FileIcon = getFileIcon(attachment.type);
