@@ -489,19 +489,19 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
                   .join('')}
               </AvatarFallback>
             </Avatar>
-            <div className="grid gap-1">
-              <div className="font-semibold">{mail.name}</div>
-              <div className="line-clamp-1 text-xs text-muted-foreground">
+            <div className="grid gap-1 min-w-0 flex-1">
+              <div className="font-semibold truncate">{mail.name}</div>
+              <div className="line-clamp-1 text-xs text-muted-foreground truncate">
                 Reply-to: {mail.email}
               </div>
             </div>
-            <div className="ml-auto text-xs text-muted-foreground">
+            <div className="ml-auto text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
               {format(mailDate, "MMM d, yyyy, h:mm a")}
             </div>
           </div>
         </div>
         <div className="p-4 pt-0">
-          <h1 className="text-2xl font-bold">{mail.subject}</h1>
+          <h1 className="text-xl md:text-2xl font-bold break-words">{mail.subject}</h1>
           {mail.inReplyTo && (
             <div className="mt-2">
               <Button
@@ -593,23 +593,23 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
                 return (
                   <div className="rounded-xl border p-4 shadow-sm bg-card text-card-foreground border-slate-200">
                     {/* Header for HTML email same as thread latest message */}
-                    <div className="flex items-start justify-between gap-4 mb-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <Avatar className="h-8 w-8 flex-shrink-0">
                           <AvatarFallback className="bg-primary text-primary-foreground">
                             {mail.name.slice(0, 1).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="grid gap-0.5">
-                          <div className="text-sm font-semibold text-foreground">
+                        <div className="grid gap-0.5 min-w-0">
+                          <div className="text-sm font-semibold text-foreground truncate">
                             {mail.name}
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground truncate">
                             {`<${mail.email}>`}
                           </div>
                         </div>
                       </div>
-                      <div className="text-xs text-muted-foreground whitespace-nowrap">
+                      <div className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
                         {format(new Date(mail.date), "MMM d, yyyy, h:mm a")}
                       </div>
                     </div>
@@ -638,23 +638,23 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
                     msg.isLatest ? "bg-card text-card-foreground border-slate-200" : "bg-muted/30 border-transparent"
                   )}>
                     {/* Header */}
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <Avatar className="h-8 w-8 flex-shrink-0">
                           <AvatarFallback className={cn(msg.isLatest ? "bg-primary text-primary-foreground" : "bg-muted-foreground/20")}>
                             {msg.senderName.slice(0, 1).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="grid gap-0.5">
-                          <div className="text-sm font-semibold text-foreground">
+                        <div className="grid gap-0.5 min-w-0">
+                          <div className="text-sm font-semibold text-foreground truncate">
                             {msg.senderName}
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground truncate">
                             {msg.senderEmail && `<${msg.senderEmail}>`}
                           </div>
                         </div>
                       </div>
-                      <div className="text-xs text-muted-foreground whitespace-nowrap">
+                      <div className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
                         {dateDisplay}
                       </div>
                     </div>
@@ -662,7 +662,7 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
                     <Separator className="my-2 opacity-50" />
 
                     {/* Body */}
-                    <div className="text-sm whitespace-pre-wrap leading-relaxed">
+                    <div className="text-sm whitespace-pre-wrap leading-relaxed break-words overflow-hidden">
                       {msg.content}
                     </div>
                   </div>
