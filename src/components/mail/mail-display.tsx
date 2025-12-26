@@ -25,6 +25,10 @@ import {
   Image,
   FileText,
   FileArchive,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
 } from 'lucide-react';
 import { format, isToday } from 'date-fns';
 
@@ -42,8 +46,13 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Textarea } from '../ui/textarea';
 import { useMail } from '@/contexts/mail-context';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { ComposeDialog } from './compose-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { mailService } from '@/lib/mail-service';
 import { useAuth } from '@/contexts/auth-context';
@@ -193,11 +202,47 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
   const { user } = useAuth();
   const [replyBody, setReplyBody] = useState('');
   const [isSendingReply, setIsSendingReply] = useState(false);
+  
+  // Lightbox state for image attachments
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   // Coinbase CDP hooks for embedded wallet
   const { sendUserOperation } = useSendUserOperation();
   const { currentUser } = useCurrentUser();
   const { isSignedIn } = useIsSignedIn();
+
+  // Get image attachments for lightbox
+  const imageAttachments = mail?.attachments?.filter(a => a.type.startsWith('image/')) || [];
+
+  const openLightbox = useCallback((index: number) => {
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  }, []);
+
+  const closeLightbox = useCallback(() => {
+    setLightboxOpen(false);
+  }, []);
+
+  const nextImage = useCallback(() => {
+    setLightboxIndex((prev) => (prev + 1) % imageAttachments.length);
+  }, [imageAttachments.length]);
+
+  const prevImage = useCallback(() => {
+    setLightboxIndex((prev) => (prev - 1 + imageAttachments.length) % imageAttachments.length);
+  }, [imageAttachments.length]);
+
+  // Handle keyboard navigation in lightbox
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!lightboxOpen) return;
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowRight') nextImage();
+      if (e.key === 'ArrowLeft') prevImage();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxOpen, closeLightbox, nextImage, prevImage]);
 
   if (!mail) {
     return (
@@ -631,20 +676,68 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
                   Attachments ({mail.attachments.length})
                 </span>
               </div>
+              
+              {/* Image Previews Grid */}
+              {imageAttachments.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-3">
+                  {imageAttachments.map((attachment, index) => {
+                    const imageUrl = getIpfsUrl(attachment.cid);
+                    return (
+                      <div
+                        key={`img-${index}`}
+                        className="relative aspect-square rounded-lg overflow-hidden border bg-muted cursor-pointer group"
+                        onClick={() => openLightbox(index)}
+                      >
+                        <img
+                          src={imageUrl}
+                          alt={attachment.name}
+                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                          <p className="text-xs text-white truncate">{attachment.name}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Non-image attachments list */}
               <div className="grid gap-2">
                 {mail.attachments.map((attachment, index) => {
                   const FileIcon = getFileIcon(attachment.type);
                   const downloadUrl = getIpfsUrl(attachment.cid);
+                  const isImage = attachment.type.startsWith('image/');
                   
                   return (
                     <div
                       key={index}
                       className="flex items-center gap-3 p-2 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
                     >
-                      {/* File Icon */}
-                      <div className="h-10 w-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                        <FileIcon className="h-5 w-5 text-muted-foreground" />
-                      </div>
+                      {/* Preview or Icon */}
+                      {isImage ? (
+                        <div 
+                          className="h-10 w-10 rounded overflow-hidden flex-shrink-0 cursor-pointer"
+                          onClick={() => {
+                            const imgIndex = imageAttachments.findIndex(a => a.cid === attachment.cid);
+                            if (imgIndex !== -1) openLightbox(imgIndex);
+                          }}
+                        >
+                          <img
+                            src={downloadUrl}
+                            alt={attachment.name}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="h-10 w-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                          <FileIcon className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
 
                       {/* File Info */}
                       <div className="flex-1 min-w-0">
@@ -654,23 +747,35 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
                         </p>
                       </div>
 
-                      {/* Download Button */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        asChild
-                        className="flex-shrink-0"
-                      >
-                        <a
-                          href={downloadUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download={attachment.name}
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {isImage && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const imgIndex = imageAttachments.findIndex(a => a.cid === attachment.cid);
+                              if (imgIndex !== -1) openLightbox(imgIndex);
+                            }}
+                          >
+                            <ZoomIn className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          asChild
                         >
-                          <Download className="h-4 w-4 mr-1" />
-                          Download
-                        </a>
-                      </Button>
+                          <a
+                            href={downloadUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download={attachment.name}
+                          >
+                            <Download className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
@@ -678,6 +783,112 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
             </div>
           </div>
         )}
+
+        {/* Image Lightbox */}
+        <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+          <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none">
+            <DialogTitle className="sr-only">Image Preview</DialogTitle>
+            {imageAttachments.length > 0 && (
+              <div className="relative w-full h-full flex items-center justify-center">
+                {/* Close button */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 z-10 text-white hover:bg-white/20"
+                  onClick={closeLightbox}
+                >
+                  <X className="h-6 w-6" />
+                </Button>
+
+                {/* Image counter */}
+                {imageAttachments.length > 1 && (
+                  <div className="absolute top-2 left-2 z-10 text-white text-sm bg-black/50 px-2 py-1 rounded">
+                    {lightboxIndex + 1} / {imageAttachments.length}
+                  </div>
+                )}
+
+                {/* Previous button */}
+                {imageAttachments.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 z-10 text-white hover:bg-white/20 h-12 w-12"
+                    onClick={prevImage}
+                  >
+                    <ChevronLeft className="h-8 w-8" />
+                  </Button>
+                )}
+
+                {/* Main image */}
+                <div className="flex flex-col items-center justify-center p-4 max-h-[90vh]">
+                  <img
+                    src={getIpfsUrl(imageAttachments[lightboxIndex]?.cid)}
+                    alt={imageAttachments[lightboxIndex]?.name}
+                    className="max-w-full max-h-[80vh] object-contain"
+                  />
+                  <div className="mt-2 text-center">
+                    <p className="text-white text-sm">{imageAttachments[lightboxIndex]?.name}</p>
+                    <p className="text-white/60 text-xs">
+                      {formatFileSize(imageAttachments[lightboxIndex]?.size || 0)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Next button */}
+                {imageAttachments.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 z-10 text-white hover:bg-white/20 h-12 w-12"
+                    onClick={nextImage}
+                  >
+                    <ChevronRight className="h-8 w-8" />
+                  </Button>
+                )}
+
+                {/* Download button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute bottom-4 right-4 z-10 text-white hover:bg-white/20"
+                  asChild
+                >
+                  <a
+                    href={getIpfsUrl(imageAttachments[lightboxIndex]?.cid)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={imageAttachments[lightboxIndex]?.name}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </a>
+                </Button>
+
+                {/* Thumbnail strip for multiple images */}
+                {imageAttachments.length > 1 && (
+                  <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10 flex gap-2 p-2 bg-black/50 rounded-lg max-w-[80vw] overflow-x-auto">
+                    {imageAttachments.map((attachment, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setLightboxIndex(index)}
+                        className={cn(
+                          "h-12 w-12 rounded overflow-hidden flex-shrink-0 border-2 transition-all",
+                          index === lightboxIndex ? "border-white" : "border-transparent opacity-60 hover:opacity-100"
+                        )}
+                      >
+                        <img
+                          src={getIpfsUrl(attachment.cid)}
+                          alt={attachment.name}
+                          className="h-full w-full object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         <Separator className="mt-auto" />
         <div className="p-4">
