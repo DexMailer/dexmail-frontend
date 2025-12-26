@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadJSONToIPFS } from '@/lib/pinata';
+import { uploadJSONToIPFS, uploadFileToIPFS } from '@/lib/pinata';
 import { indexMailOnChain } from '@/server/utils';
 import { simpleParser } from 'mailparser';
+
+interface EmailAttachment {
+    name: string;
+    size: number;
+    type: string;
+    cid: string;
+}
+
 // SendGrid Inbound Parse Webhook handler
 export async function POST(req: NextRequest) {
     // Vercel logs are captured from console.log
@@ -35,6 +43,42 @@ export async function POST(req: NextRequest) {
         const envelope = formData.get('envelope') as string;
         const charsets = formData.get('charsets') as string;
 
+        // Handle attachments from SendGrid
+        const attachments: EmailAttachment[] = [];
+        const attachmentInfo = formData.get('attachment-info') as string;
+        
+        if (attachmentInfo) {
+            try {
+                const attachmentMeta = JSON.parse(attachmentInfo);
+                log(`Found ${Object.keys(attachmentMeta).length} attachment(s)`);
+                
+                for (const [key, meta] of Object.entries(attachmentMeta) as [string, any][]) {
+                    const file = formData.get(key) as File;
+                    if (file) {
+                        log(`Processing attachment: ${meta.filename} (${meta.type}, ${file.size} bytes)`);
+                        try {
+                            // Upload attachment to IPFS
+                            const attachmentResult = await uploadFileToIPFS(file);
+                            attachments.push({
+                                name: meta.filename || file.name,
+                                size: file.size,
+                                type: meta.type || file.type,
+                                cid: attachmentResult.IpfsHash
+                            });
+                            log(`Uploaded attachment to IPFS: ${attachmentResult.IpfsHash}`);
+                        } catch (attachErr) {
+                            console.error(`[SendGrid Inbound] Failed to upload attachment ${meta.filename}:`, attachErr);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('[SendGrid Inbound] Failed to parse attachment-info:', e);
+            }
+        }
+
+        // Also check for attachments in parsed raw email
+        let parsedAttachments: any[] = [];
+
         // Fallback: Parse raw email if text/html are missing
         if (!text && !html && rawEmail) {
             try {
@@ -42,15 +86,38 @@ export async function POST(req: NextRequest) {
                 const parsed = await simpleParser(rawEmail);
                 text = parsed.text || '';
                 html = (parsed.html as string) || '';
-                log(`Parsed raw email. Text length: ${text.length}, HTML length: ${html.length}`);
+                parsedAttachments = parsed.attachments || [];
+                log(`Parsed raw email. Text length: ${text.length}, HTML length: ${html.length}, Attachments: ${parsedAttachments.length}`);
             } catch (parseError) {
                 console.error('[SendGrid Inbound] Failed to parse raw email:', parseError);
                 log('Failed to parse raw email');
             }
         }
 
+        // Process attachments from parsed email if not already processed
+        if (parsedAttachments.length > 0 && attachments.length === 0) {
+            for (const att of parsedAttachments) {
+                try {
+                    log(`Processing parsed attachment: ${att.filename} (${att.contentType}, ${att.size} bytes)`);
+                    const blob = new Blob([att.content], { type: att.contentType });
+                    const file = new File([blob], att.filename || 'attachment', { type: att.contentType });
+                    const attachmentResult = await uploadFileToIPFS(file);
+                    attachments.push({
+                        name: att.filename || 'attachment',
+                        size: att.size,
+                        type: att.contentType,
+                        cid: attachmentResult.IpfsHash
+                    });
+                    log(`Uploaded parsed attachment to IPFS: ${attachmentResult.IpfsHash}`);
+                } catch (attachErr) {
+                    console.error(`[SendGrid Inbound] Failed to upload parsed attachment:`, attachErr);
+                }
+            }
+        }
+
         log(`Received email from: ${from} to: ${to} subject: ${subject}`);
         log(`Final Text length: ${text ? text.length : 'null'}, HTML length: ${html ? html.length : 'null'}`);
+        log(`Total attachments: ${attachments.length}`);
         console.log(`[SendGrid Inbound] Received email from ${from} to ${to}`);
 
         // 1. Upload to IPFS
@@ -65,6 +132,7 @@ export async function POST(req: NextRequest) {
             htmlBody: html,
             textBody: text,
             timestamp: new Date().toISOString(),
+            attachments: attachments.length > 0 ? attachments : undefined,
             headers: {
                 'sender-ip': senderIp,
                 'dkim': dkims,

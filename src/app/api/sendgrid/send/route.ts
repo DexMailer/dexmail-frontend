@@ -10,6 +10,29 @@ if (API_KEY) {
     console.warn('SENDGRID_API_KEY is not set');
 }
 
+interface EmailAttachment {
+    name: string;
+    size: number;
+    type: string;
+    cid: string;
+}
+
+// Fetch file from IPFS and convert to base64
+async function fetchAttachmentFromIPFS(cid: string): Promise<string | null> {
+    try {
+        const gatewayUrl = `https://gateway.pinata.cloud/ipfs/${cid}`;
+        const response = await fetch(gatewayUrl);
+        if (!response.ok) return null;
+        
+        const arrayBuffer = await response.arrayBuffer();
+        const base64 = Buffer.from(arrayBuffer).toString('base64');
+        return base64;
+    } catch (error) {
+        console.error(`[SendGrid] Failed to fetch attachment from IPFS: ${cid}`, error);
+        return null;
+    }
+}
+
 export async function POST(req: NextRequest) {
     if (!API_KEY) {
         return NextResponse.json({ error: 'SendGrid API key not configured' }, { status: 500 });
@@ -17,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { to, from, subject, text, html, replyTo } = body;
+        const { to, from, subject, text, html, replyTo, attachments } = body;
 
         if (!to || !from || !subject || (!text && !html)) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -32,12 +55,26 @@ export async function POST(req: NextRequest) {
 
         // Sanitize potentially rendered fields
         const safeSubject = sanitizeInput(subject);
-        // HTML is expected to be HTML, but we should be careful. 
-        // For now, assume the client cleans it or we trust it to some degree if it's our own editor.
-        // If this is public facing, we'd need a robust HTML sanitizer like 'dompurify' (server side version like jsdom or isomorphic-dompurify).
-        // Since we didn't add that dep, we will assume basic structure is valid but maybe check length.
 
-        const msg = {
+        // Process attachments if present
+        const sgAttachments: { content: string; filename: string; type: string; disposition: string }[] = [];
+        
+        if (attachments && Array.isArray(attachments)) {
+            for (const att of attachments as EmailAttachment[]) {
+                const content = await fetchAttachmentFromIPFS(att.cid);
+                if (content) {
+                    sgAttachments.push({
+                        content,
+                        filename: att.name,
+                        type: att.type,
+                        disposition: 'attachment'
+                    });
+                }
+            }
+            console.log(`[SendGrid] Processed ${sgAttachments.length} attachments`);
+        }
+
+        const msg: sgMail.MailDataRequired = {
             to,
             from,
             subject: safeSubject,
@@ -60,11 +97,12 @@ export async function POST(req: NextRequest) {
                 subscriptionTracking: {
                     enable: false
                 }
-            }
+            },
+            ...(sgAttachments.length > 0 && { attachments: sgAttachments })
         };
 
         await sgMail.send(msg);
-        console.log(`[SendGrid] Email sent to ${to}`);
+        console.log(`[SendGrid] Email sent to ${to}${sgAttachments.length > 0 ? ` with ${sgAttachments.length} attachment(s)` : ''}`);
 
         return NextResponse.json({ success: true });
     } catch (error: any) {
