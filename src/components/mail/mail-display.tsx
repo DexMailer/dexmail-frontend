@@ -679,13 +679,13 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
               
               {/* Image Previews Grid */}
               {imageAttachments.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-3">
+                <div className="flex flex-wrap gap-2 mb-3">
                   {imageAttachments.map((attachment, index) => {
                     const imageUrl = getIpfsUrl(attachment.cid);
                     return (
                       <div
                         key={`img-${index}`}
-                        className="relative aspect-square rounded-lg overflow-hidden border bg-muted cursor-pointer group"
+                        className="relative w-20 h-20 rounded-md overflow-hidden border bg-muted cursor-pointer group"
                         onClick={() => openLightbox(index)}
                       >
                         <img
@@ -694,11 +694,8 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
                           className="w-full h-full object-cover transition-transform group-hover:scale-105"
                           loading="lazy"
                         />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                          <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                          <p className="text-xs text-white truncate">{attachment.name}</p>
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                          <ZoomIn className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                       </div>
                     );
@@ -786,15 +783,15 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
 
         {/* Image Lightbox */}
         <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-          <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none">
+          <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none [&>button]:hidden">
             <DialogTitle className="sr-only">Image Preview</DialogTitle>
             {imageAttachments.length > 0 && (
-              <div className="relative w-full h-full flex items-center justify-center">
+              <div className="relative w-full h-full min-h-[50vh] flex items-center justify-center">
                 {/* Close button */}
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute top-2 right-2 z-10 text-white hover:bg-white/20"
+                  className="absolute top-4 right-4 z-50 text-white hover:bg-white/20 h-10 w-10 rounded-full bg-black/50"
                   onClick={closeLightbox}
                 >
                   <X className="h-6 w-6" />
