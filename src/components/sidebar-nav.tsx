@@ -209,10 +209,8 @@ export function SidebarNav() {
           ))}
         </SidebarMenu>
         <div className="h-px bg-gradient-to-r from-transparent via-muted-foreground/20 to-transparent my-2" />
-        <div className="p-2 flex items-center gap-2">
-          <div className="flex-1">
-            <UserNav />
-          </div>
+        <div className="p-2">
+          <UserNav />
         </div>
       </div>
     </div>
