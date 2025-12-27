@@ -206,52 +206,11 @@ function MobileHeader() {
   })();
 
   return (
-    <header className="fixed top-0 z-10 flex h-16 items-center justify-between gap-3 shadow-md bg-background px-4 w-full">
-      <div className="relative flex-1 max-w-xs">
+    <header className="md:hidden fixed top-0 z-10 flex h-16 items-center justify-between gap-2 shadow-md bg-background px-4 w-full">
+      <div className="relative flex-1">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Search..." className="bg-muted pl-8 h-10 rounded-full" />
-      </div>
-      <div className="flex items-center">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full p-0">
-              <Avatar className="h-8 w-8 flex-shrink-0">
-                <AvatarImage
-                  src={userAvatar?.imageUrl}
-                  alt="User Avatar"
-                  data-ai-hint={userAvatar?.imageHint}
-                />
-                <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end">
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none truncate">{formattedEmail}</p>
-                <p className="text-xs leading-none text-muted-foreground truncate">
-                  {displayAddress
-                    ? `${displayAddress.slice(0, 6)}...${displayAddress.slice(-4)}`
-                    : 'No wallet connected'}
-                </p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem asChild>
-                <Link href="/profile">Profile</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/settings">Settings</Link>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => logout()}>
-              Log out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      </div>     
     </header>
   );
 }
