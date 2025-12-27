@@ -100,18 +100,25 @@ body {
 .email-content {
   font-size: 14px;
   line-height: 1.5;
-  color: var(--foreground);
+  color: var(--foreground, #000000);
   max-width: 100%;
   overflow-wrap: break-word;
   word-wrap: break-word;
   word-break: break-word;
   overflow-x: hidden;
+  min-height: 100px;
+}
+
+/* Ensure text is visible in both light and dark modes */
+.dark .email-content {
+  color: var(--foreground, #ffffff);
 }
 
 /* Preserve inline styles from HTML emails */
 .email-content * {
   max-width: 100%;
   box-sizing: border-box;
+  color: inherit;
 }
 
 .email-content a {
@@ -188,12 +195,59 @@ body {
 /* Font styling */
 .email-content font {
   font-family: inherit;
+  color: inherit !important;
+}
+
+/* Ensure divs and spans inherit text color */
+.email-content div,
+.email-content span,
+.email-content p,
+.email-content td,
+.email-content th {
+  color: inherit;
+}
+
+/* Override potentially problematic inline styles */
+.email-content [style*="color: white"],
+.email-content [style*="color:#ffffff"],
+.email-content [style*="color: #fff"] {
+  color: var(--foreground, #000000) !important;
+}
+
+.dark .email-content [style*="color: white"],
+.dark .email-content [style*="color:#ffffff"],
+.dark .email-content [style*="color: #fff"] {
+  color: var(--foreground, #ffffff) !important;
+}
+
+/* Ensure text visibility on various backgrounds */
+.email-content [bgcolor],
+.email-content [style*="background-color"],
+.email-content [style*="background:"] {
+  color: inherit;
 }
 
 /* Responsive images in HTML emails */
 .email-content img[width] {
   width: auto;
   max-width: 100%;
+}
+
+/* Force visibility for any potentially hidden content */
+.email-content {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.email-content * {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Prevent white on white or transparent text issues */
+.email-content *:not(img):not(svg):not(hr) {
+  min-height: 0;
+  text-shadow: none;
 }
 
 /* Gmail-style forwarded message header (.gmail_attr) */

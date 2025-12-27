@@ -58,7 +58,6 @@ class CryptoService {
     const account = getAccount(wagmiConfig);
 
     if (account.address) {
-      // Check allowance
       const allowance = await readContract(wagmiConfig, {
         address: tokenAddress as `0x${string}`,
         abi: erc20Abi,
@@ -96,7 +95,7 @@ class CryptoService {
     if (asset.type === 'eth') {
       amount = parseEther(asset.amount || '0');
     } else if (asset.type === 'erc20') {
-      amount = parseUnits(asset.amount || '0', 18); // Assuming 18 decimals
+      amount = parseUnits(asset.amount || '0', 18); 
     } else if (asset.type === 'nft') {
       amount = BigInt(asset.tokenId || '0');
     }
@@ -115,7 +114,7 @@ class CryptoService {
     });
 
     return {
-      claimToken: txHash, // Use txHash as claim token for now
+      claimToken: txHash, 
       walletAddress: await this.getWalletAddress(data.recipientEmail).then(r => r.walletAddress)
     };
   }
@@ -139,10 +138,10 @@ class CryptoService {
     }) as any[];
 
     return transfers.map(t => ({
-      emailHash: '', // Not returned by contract function in this struct?
+      emailHash: '',
       recipientEmail: t.recipientEmail,
-      senderEmail: t.sender, // Sender address, not email
-      walletAddress: '', // We'd need to compute it
+      senderEmail: t.sender, 
+      walletAddress: '',
       transfers: [{
         type: t.isNft ? 'nft' : (t.token === '0x0000000000000000000000000000000000000000' ? 'eth' : 'erc20'),
         token: t.token,
@@ -171,7 +170,7 @@ class CryptoService {
         isNFT: t.transfers[0].type === 'nft',
         sender: t.senderEmail,
         recipientEmail: t.recipientEmail,
-        timestamp: new Date().toISOString(), // Mock timestamp if not available
+        timestamp: new Date().toISOString(), 
         claimed: t.status === 'claimed'
       }))
     };

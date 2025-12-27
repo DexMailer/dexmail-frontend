@@ -852,7 +852,7 @@ export function MailDisplay({ mail, onBack, onNavigateToMail }: MailDisplayProps
                     <Separator className="my-2 opacity-50" />
 
                     {/* Body */}
-                    <div className="text-sm whitespace-pre-wrap leading-relaxed break-words overflow-hidden">
+                    <div className="text-sm whitespace-pre-wrap leading-relaxed break-words overflow-hidden text-foreground">
                       <MessageContent content={msg.content} />
                     </div>
                   </div>
