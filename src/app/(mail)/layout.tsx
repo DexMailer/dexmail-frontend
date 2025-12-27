@@ -11,7 +11,7 @@ import {
 import { SidebarNav } from '@/components/sidebar-nav';
 import { AppLogo } from '@/components/app-logo';
 import { Button } from '@/components/ui/button';
-import { Edit, Inbox, Star, Settings, PanelLeft, Gift } from 'lucide-react';
+import { Edit, Inbox, Star, User, PanelLeft, Gift } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ComposeDialog } from '@/components/mail/compose-dialog';
@@ -28,11 +28,11 @@ function BottomNavBar() {
     { name: 'Inbox', href: '/mail', icon: Inbox },
     { name: 'Claim', href: '/claim', icon: Gift },
     { name: 'Starred', href: '/starred', icon: Star },
-    { name: 'Settings', href: '/settings', icon: Settings },
+    { name: 'Profile', href: '/profile', icon: User },
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card text-card-foreground">
+    <div className="fixed bottom-0 left-0 right-0 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] bg-card text-card-foreground">
       <div className="relative flex h-16 items-center justify-between px-2">
         <div className="flex w-full justify-around">
           {navItems.slice(0, 2).map((item) => (
@@ -108,7 +108,7 @@ function MailLayoutContent({ children }: { children: React.ReactNode }) {
         <BottomNavBar />
       </div>
       <div className="hidden md:flex h-screen w-full">
-        <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
+        <Sidebar collapsible="icon" className="shadow-lg bg-sidebar">
           <div className="flex items-center justify-between p-4">
             <div className="flex-1">
               <AppLogo />
