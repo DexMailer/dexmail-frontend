@@ -37,7 +37,7 @@ function MailItem({
   return (
     <div
       className={cn(
-        'group/mail-item flex items-start gap-3 p-4 text-left text-sm transition-colors border-b cursor-pointer',
+        'group/mail-item flex items-start gap-3 p-4 text-left text-sm transition-colors shadow-sm hover:shadow-md cursor-pointer',
         'hover:bg-accent',
         !mail.read && 'bg-blue-500/5'
       )}
@@ -131,7 +131,7 @@ export function MailList({ items, onSelectMail, selectedMailIds, onToggleMailSel
   }
 
   return (
-    <div className="flex h-full flex-col md:border-r">
+    <div className="flex h-full flex-col md:shadow-lg">
       <ScrollArea className="h-full">
         <div className="flex flex-col gap-px">
           {items.map((item) => (

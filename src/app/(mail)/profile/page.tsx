@@ -24,6 +24,10 @@ import { tokenService } from "@/lib/token-service";
 import { useAuth } from "@/contexts/auth-context";
 import { ReceiveDialog } from "@/components/receive-dialog";
 import { SendDialog } from "@/components/send-dialog";
+import { ExportWalletModal } from "@coinbase/cdp-react";
+import { useEvmAddress, useCurrentUser } from "@coinbase/cdp-hooks";
+import { Label } from "@/components/ui/label";
+import Link from 'next/link';
 
 
 
@@ -110,6 +114,9 @@ function NFTGallery({ nfts }: { nfts: NFT[] }) {
 export default function ProfilePage() {
   const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
   const { user } = useAuth();
+  const { currentUser } = useCurrentUser();
+  const eoaAddress = currentUser?.evmAccounts?.[0];
+  const isEmbeddedWallet = user?.authType === 'coinbase-embedded';
 
   const address = (user?.walletAddress || wagmiAddress) as `0x${string}` | undefined;
   const isConnected = !!address;
@@ -284,6 +291,7 @@ export default function ProfilePage() {
         <TabsList className="rounded-full">
           <TabsTrigger value="tokens" className="data-[state=active]:rounded-full">Tokens</TabsTrigger>
           <TabsTrigger value="nfts" className="data-[state=active]:rounded-full">NFTs</TabsTrigger>
+          <TabsTrigger value="settings" className="data-[state=active]:rounded-full">Settings</TabsTrigger>
         </TabsList>
         <TabsContent value="tokens" className="space-y-4">
           {isLoadingTokens ? (
@@ -333,6 +341,59 @@ export default function ProfilePage() {
             <div className="text-center p-8 text-muted-foreground">
               No NFTs found in this wallet on Base Sepolia.
             </div>
+          )}
+        </TabsContent>
+        <TabsContent value="settings" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Whitelist & Contact Fees</CardTitle>
+              <CardDescription>
+                Manage your whitelist and set pay-to-contact fees to control spam.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1">
+                  <span className="font-medium">Configure Whitelist</span>
+                  <span className="text-sm text-muted-foreground">
+                    Set fees for non-whitelisted senders.
+                  </span>
+                </div>
+                <Button variant="outline" asChild>
+                  <Link href="/settings/whitelist">Manage</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {isEmbeddedWallet && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Wallet Security</CardTitle>
+                <CardDescription>
+                  Export your embedded wallet's private key for backup.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex flex-col gap-1">
+                    <Label>Export Private Key</Label>
+                    <span className="font-normal text-sm text-muted-foreground">
+                      Securely export your wallet's private key. Keep it secret, keep it safe.
+                    </span>
+                  </div>
+                  <div className="flex-shrink-0">
+                    {eoaAddress ? (
+                      <ExportWalletModal address={eoaAddress} />
+                    ) : (
+                      <Button variant="outline" disabled>
+                        Loading wallet...
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
       </Tabs>

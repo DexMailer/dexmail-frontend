@@ -63,7 +63,7 @@ function Header({ selectedMailIds, onDelete, onArchive, onSpam, onRestore, onAdd
   const [newLabel, setNewLabel] = useState('');
 
   return (
-    <div className="flex items-center justify-between p-4 border-b">
+    <div className="flex items-center justify-between p-4 shadow-sm">
       <div className="flex items-center gap-2">
         <p className="text-sm text-muted-foreground">
           {selectedMailIds.length > 0 ? `${selectedMailIds.length} selected` : 'All Messages'}
@@ -206,7 +206,7 @@ function MobileHeader() {
   })();
 
   return (
-    <header className="fixed top-0 z-10 flex h-16 items-center justify-between gap-3 border-b bg-background px-4 w-full">
+    <header className="fixed top-0 z-10 flex h-16 items-center justify-between gap-3 shadow-md bg-background px-4 w-full">
       <div className="relative flex-1 max-w-xs">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Search..." className="bg-muted pl-8 h-10 rounded-full" />
