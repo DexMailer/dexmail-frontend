@@ -56,21 +56,35 @@ interface HeaderProps {
   onRemoveLabel: (label: string) => void;
   isTrashView?: boolean;
   onRefresh: () => void;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
 }
 
-function Header({ selectedMailIds, onDelete, onArchive, onSpam, onRestore, onAddLabel, onRemoveLabel, isTrashView, onRefresh }: HeaderProps) {
+function Header({ selectedMailIds, onDelete, onArchive, onSpam, onRestore, onAddLabel, onRemoveLabel, isTrashView, onRefresh, searchQuery, onSearchChange }: HeaderProps) {
   const labels = useMailLabels();
   const [newLabel, setNewLabel] = useState('');
 
   return (
-    <div className="flex items-center justify-between p-4 shadow-sm">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center justify-between p-4 shadow-sm gap-4">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <p className="text-sm text-muted-foreground">
           {selectedMailIds.length > 0 ? `${selectedMailIds.length} selected` : 'All Messages'}
         </p>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex-1 max-w-md mx-auto">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search emails..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="pl-9 bg-muted/50"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4 flex-shrink-0">
         {selectedMailIds.length > 0 ? (
           <>
             <TooltipProvider delayDuration={0}>
@@ -200,6 +214,7 @@ export function MailComponent({
   const { mails, isLoading, deleteMails, archiveMails, spamMails, restoreMails, addLabelToMails, removeLabelFromMails, refreshMails } = useMail();
   const [selectedMailIds, setSelectedMailIds] = React.useState<string[]>([]);
   const [activeCategory, setActiveCategory] = React.useState(category);
+  const [searchQuery, setSearchQuery] = React.useState('');
   const isMobile = useIsMobile();
   const router = useRouter();
 
@@ -215,9 +230,9 @@ export function MailComponent({
   // Use context mails if available, otherwise use initial mails
   const displayMails = mails.length > 0 ? mails : initialMails;
 
-  // Filter mails based on activeCategory or label
+  // Filter mails based on activeCategory, label, and search query
   const filteredMails = React.useMemo(() => {
-    return displayMails.filter((mail) => {
+    let filtered = displayMails.filter((mail) => {
       if (label) {
         return mail.labels && mail.labels.includes(decodeURIComponent(label));
       }
@@ -243,7 +258,29 @@ export function MailComponent({
           return true;
       }
     });
-  }, [displayMails, activeCategory, label]);
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const searchTerms = searchQuery.toLowerCase().split(/\s+/).filter(term => term.length > 0);
+      
+      filtered = filtered.filter((mail) => {
+        const searchableFields = {
+          name: (mail.name || '').toLowerCase(),
+          email: (mail.email || '').toLowerCase(),
+          subject: (mail.subject || '').toLowerCase(),
+          text: (mail.text || '').toLowerCase(),
+          labels: (mail.labels || []).join(' ').toLowerCase()
+        };
+        
+        // Check if any search term matches any field
+        return searchTerms.some(term => 
+          Object.values(searchableFields).some(field => field.includes(term))
+        );
+      });
+    }
+
+    return filtered;
+  }, [displayMails, activeCategory, label, searchQuery]);
 
   const handleSelectMail = (mail: Mail) => {
     router.push(`/mail/${mail.id}`);
@@ -313,6 +350,8 @@ export function MailComponent({
         }}
         isTrashView={category === 'trash'}
         onRefresh={handleRefresh}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
       />
       <div className="flex-1 w-full">
         {isLoading ? (
