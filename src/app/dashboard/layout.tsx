@@ -11,7 +11,8 @@ import {
 import { SidebarNav } from '@/components/sidebar-nav';
 import { AppLogo } from '@/components/app-logo';
 import { Button } from '@/components/ui/button';
-import { Edit, Inbox, Star, Settings, PanelLeft, Gift } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Edit, Inbox, Star, Settings, PanelLeft, Gift, Menu, Search } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ComposeDialog } from '@/components/mail/compose-dialog';

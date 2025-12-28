@@ -56,21 +56,35 @@ interface HeaderProps {
   onRemoveLabel: (label: string) => void;
   isTrashView?: boolean;
   onRefresh: () => void;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
 }
 
-function Header({ selectedMailIds, onDelete, onArchive, onSpam, onRestore, onAddLabel, onRemoveLabel, isTrashView, onRefresh }: HeaderProps) {
+function Header({ selectedMailIds, onDelete, onArchive, onSpam, onRestore, onAddLabel, onRemoveLabel, isTrashView, onRefresh, searchQuery, onSearchChange }: HeaderProps) {
   const labels = useMailLabels();
   const [newLabel, setNewLabel] = useState('');
 
   return (
-    <div className="flex items-center justify-between p-4 shadow-sm">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center justify-between p-4 shadow-sm gap-4">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <p className="text-sm text-muted-foreground">
           {selectedMailIds.length > 0 ? `${selectedMailIds.length} selected` : 'All Messages'}
         </p>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex-1 max-w-md mx-auto">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search emails..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="pl-9 bg-muted/50"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4 flex-shrink-0">
         {selectedMailIds.length > 0 ? (
           <>
             <TooltipProvider delayDuration={0}>
@@ -184,78 +198,6 @@ function Header({ selectedMailIds, onDelete, onArchive, onSpam, onRestore, onAdd
 }
 
 import { useAuth } from '@/contexts/auth-context';
-
-function MobileHeader() {
-  const { user, logout } = useAuth();
-  const { address: wagmiAddress } = useAccount();
-
-  // Prioritize user.walletAddress for embedded wallets
-  const displayAddress = user?.walletAddress || wagmiAddress;
-
-  const userAvatar = PlaceHolderImages.find(
-    (img) => img.id === 'user-avatar-1'
-  );
-
-  const formattedEmail = (() => {
-    const email = user?.email || 'User';
-    const parts = email.split('@');
-    if (parts.length !== 2) return email;
-    const [name, domain] = parts;
-    if (name.length <= 4) return email;
-    return `${name.slice(0, 4)}...@${domain}`;
-  })();
-
-  return (
-    <header className="fixed top-0 z-10 flex h-16 items-center justify-between gap-3 shadow-md bg-background px-4 w-full">
-      <div className="relative flex-1 max-w-xs">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search..." className="bg-muted pl-8 h-10 rounded-full" />
-      </div>
-      <div className="flex items-center">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full p-0">
-              <Avatar className="h-8 w-8 flex-shrink-0">
-                <AvatarImage
-                  src={userAvatar?.imageUrl}
-                  alt="User Avatar"
-                  data-ai-hint={userAvatar?.imageHint}
-                />
-                <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end">
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none truncate">{formattedEmail}</p>
-                <p className="text-xs leading-none text-muted-foreground truncate">
-                  {displayAddress
-                    ? `${displayAddress.slice(0, 6)}...${displayAddress.slice(-4)}`
-                    : 'No wallet connected'}
-                </p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem asChild>
-                <Link href="/profile">Profile</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/settings">Settings</Link>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => logout()}>
-              Log out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </header>
-  );
-}
-
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 
 // ... (imports remain the same)
@@ -272,6 +214,7 @@ export function MailComponent({
   const { mails, isLoading, deleteMails, archiveMails, spamMails, restoreMails, addLabelToMails, removeLabelFromMails, refreshMails } = useMail();
   const [selectedMailIds, setSelectedMailIds] = React.useState<string[]>([]);
   const [activeCategory, setActiveCategory] = React.useState(category);
+  const [searchQuery, setSearchQuery] = React.useState('');
   const isMobile = useIsMobile();
   const router = useRouter();
 
@@ -287,9 +230,9 @@ export function MailComponent({
   // Use context mails if available, otherwise use initial mails
   const displayMails = mails.length > 0 ? mails : initialMails;
 
-  // Filter mails based on activeCategory or label
+  // Filter mails based on activeCategory, label, and search query
   const filteredMails = React.useMemo(() => {
-    return displayMails.filter((mail) => {
+    let filtered = displayMails.filter((mail) => {
       if (label) {
         return mail.labels && mail.labels.includes(decodeURIComponent(label));
       }
@@ -315,7 +258,29 @@ export function MailComponent({
           return true;
       }
     });
-  }, [displayMails, activeCategory, label]);
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const searchTerms = searchQuery.toLowerCase().split(/\s+/).filter(term => term.length > 0);
+      
+      filtered = filtered.filter((mail) => {
+        const searchableFields = {
+          name: (mail.name || '').toLowerCase(),
+          email: (mail.email || '').toLowerCase(),
+          subject: (mail.subject || '').toLowerCase(),
+          text: (mail.text || '').toLowerCase(),
+          labels: (mail.labels || []).join(' ').toLowerCase()
+        };
+        
+        // Check if any search term matches any field
+        return searchTerms.some(term => 
+          Object.values(searchableFields).some(field => field.includes(term))
+        );
+      });
+    }
+
+    return filtered;
+  }, [displayMails, activeCategory, label, searchQuery]);
 
   const handleSelectMail = (mail: Mail) => {
     router.push(`/mail/${mail.id}`);
@@ -333,28 +298,25 @@ export function MailComponent({
   if (isMobile) {
     return (
       <div className="flex flex-col h-full w-full bg-background">
-        <MobileHeader />
-        <div className="mt-16 flex-1 flex flex-col">
-          <div className="px-4 py-2">
-            <Tabs value={activeCategory === 'sent' ? 'sent' : 'all'} onValueChange={(val) => setActiveCategory(val as any)} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="all">Inbox</TabsTrigger>
-                <TabsTrigger value="sent">Sent</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-          <div className="flex-1 w-full">
-            {isLoading ? (
-              <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
-            ) : (
-              <MailList
-                items={filteredMails}
-                onSelectMail={handleSelectMail}
-                selectedMailIds={selectedMailIds}
-                onToggleMailSelection={handleToggleMailSelection}
-              />
-            )}
-          </div>
+        <div className="px-4 py-2">
+          <Tabs value={activeCategory === 'sent' ? 'sent' : 'all'} onValueChange={(val) => setActiveCategory(val as any)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="all">Inbox</TabsTrigger>
+              <TabsTrigger value="sent">Sent</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        <div className="flex-1 w-full overflow-auto">
+          {isLoading ? (
+            <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
+          ) : (
+            <MailList
+              items={filteredMails}
+              onSelectMail={handleSelectMail}
+              selectedMailIds={selectedMailIds}
+              onToggleMailSelection={handleToggleMailSelection}
+            />
+          )}
         </div>
       </div>
     );
@@ -388,6 +350,8 @@ export function MailComponent({
         }}
         isTrashView={category === 'trash'}
         onRefresh={handleRefresh}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
       />
       <div className="flex-1 w-full">
         {isLoading ? (
