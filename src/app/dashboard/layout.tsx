@@ -105,21 +105,6 @@ function DashboardLayoutContent({
   return (
     <>
       <div className="md:hidden flex flex-col h-screen-mobile w-full">
-        <div className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center gap-3 shadow-md bg-background px-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className="h-10 w-10 flex-shrink-0"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <Input placeholder="Search..." className="bg-muted/50 pl-9 h-10 rounded-full w-full" />
-          </div>
-          <ThemeToggle />
-        </div>
         <main className="flex-1 overflow-auto pb-16">{children}</main>
         <BottomNavBar />
       </div>
