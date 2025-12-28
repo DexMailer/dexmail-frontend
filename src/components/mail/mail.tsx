@@ -261,27 +261,25 @@ export function MailComponent({
   if (isMobile) {
     return (
       <div className="flex flex-col h-full w-full bg-background">
-        <div className="flex-1 flex flex-col pt-16">
-          <div className="px-4 py-2">
-            <Tabs value={activeCategory === 'sent' ? 'sent' : 'all'} onValueChange={(val) => setActiveCategory(val as any)} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="all">Inbox</TabsTrigger>
-                <TabsTrigger value="sent">Sent</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-          <div className="flex-1 w-full">
-            {isLoading ? (
-              <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
-            ) : (
-              <MailList
-                items={filteredMails}
-                onSelectMail={handleSelectMail}
-                selectedMailIds={selectedMailIds}
-                onToggleMailSelection={handleToggleMailSelection}
-              />
-            )}
-          </div>
+        <div className="px-4 py-2">
+          <Tabs value={activeCategory === 'sent' ? 'sent' : 'all'} onValueChange={(val) => setActiveCategory(val as any)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="all">Inbox</TabsTrigger>
+              <TabsTrigger value="sent">Sent</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        <div className="flex-1 w-full overflow-auto">
+          {isLoading ? (
+            <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
+          ) : (
+            <MailList
+              items={filteredMails}
+              onSelectMail={handleSelectMail}
+              selectedMailIds={selectedMailIds}
+              onToggleMailSelection={handleToggleMailSelection}
+            />
+          )}
         </div>
       </div>
     );
