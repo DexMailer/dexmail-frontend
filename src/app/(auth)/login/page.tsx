@@ -514,6 +514,27 @@ export default function LoginPage() {
                       {/* Step 2: OTP verification */}
                       {isOtpSent && !isSignedIn && (
                         <>
+                          <div className="text-center space-y-2 p-4 bg-primary/10 rounded-lg">
+                            <p className="text-sm text-muted-foreground">
+                              Verification code sent to:
+                            </p>
+                            <p className="text-sm font-medium">
+                              {embeddedEmail}
+                            </p>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              onClick={() => {
+                                setIsOtpSent(false);
+                                setOtpCode('');
+                                setOtpFlowId(null);
+                                setError('');
+                              }}
+                              className="text-xs"
+                            >
+                              Wrong email? Click here to edit
+                            </Button>
+                          </div>
                           <div className="grid gap-4">
                             <Label htmlFor="embedded-otp">Verification Code</Label>
                             <InputOTP
